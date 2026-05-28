@@ -178,7 +178,7 @@ export function ChatCenter() {
 		const el = inputRef.current;
 		if (!el) return;
 		el.style.height = "auto";
-		el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+		el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
 	}, []);
 
 	const buildSessionInput = useCallback((): CreateSessionInput | { __error: string } => {
@@ -302,7 +302,7 @@ export function ChatCenter() {
 			<textarea
 				ref={inputRef}
 				id="chat-input"
-				className="min-h-[36px] max-h-[140px] flex-1 resize-none rounded-md border-0 bg-transparent px-2 py-2 text-sm leading-5 text-slate-950 outline-none placeholder:text-slate-400 disabled:opacity-60"
+				className="min-h-[36px] max-h-[140px] flex-1 resize-none overflow-hidden rounded-md border-0 bg-transparent px-2 py-2 text-sm leading-5 text-slate-950 outline-none placeholder:text-slate-400 disabled:opacity-60"
 				placeholder={placeholder}
 				rows={1}
 				onKeyDown={handleKeyDown}
