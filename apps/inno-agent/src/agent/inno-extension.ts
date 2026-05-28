@@ -196,10 +196,15 @@ export function createInnoExtension(
 			const { createJiti: createJiti2 } = await import("jiti/static");
 			const jiti2 = createJiti2(import.meta.url, { moduleCache: false });
 
-			const rpivBase = ["@juicesharp", "rpiv-ask-user-question"].join("/");
-			const typesPath = [rpivBase, "tool", "types.ts"].join("/");
-			const envelopePath = [rpivBase, "tool", "response-envelope.ts"].join("/");
-			const validatePath = [rpivBase, "tool", "validate-questionnaire.ts"].join("/");
+			// Resolve the package's real filesystem path to bypass exports restrictions
+			const { fileURLToPath } = await import("node:url");
+			const { dirname } = await import("node:path");
+			const rpivEntry = import.meta.resolve("@juicesharp/rpiv-ask-user-question");
+			const rpivDir = dirname(fileURLToPath(rpivEntry));
+
+			const typesPath = `${rpivDir}/tool/types.ts`;
+			const envelopePath = `${rpivDir}/tool/response-envelope.ts`;
+			const validatePath = `${rpivDir}/tool/validate-questionnaire.ts`;
 			const typesModule = await jiti2.import(typesPath) as Record<string, unknown>;
 			const envelopeModule = await jiti2.import(envelopePath) as Record<string, unknown>;
 			const validateModule = await jiti2.import(validatePath) as Record<string, unknown>;
@@ -216,8 +221,8 @@ export function createInnoExtension(
 
 			async function ensureTuiModules() {
 				if (tuiModulesLoaded) return;
-				const sessionPath = [rpivBase, "state", "questionnaire-session.ts"].join("/");
-				const askPath = [rpivBase, "ask-user-question.ts"].join("/");
+				const sessionPath = `${rpivDir}/state/questionnaire-session.ts`;
+				const askPath = `${rpivDir}/ask-user-question.ts`;
 				const sessionModule = await jiti2.import(sessionPath) as Record<string, unknown>;
 				const askModule = await jiti2.import(askPath) as Record<string, unknown>;
 				QuestionnaireSession = sessionModule.QuestionnaireSession;
