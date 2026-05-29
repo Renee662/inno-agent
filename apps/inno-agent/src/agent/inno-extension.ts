@@ -7,6 +7,7 @@ import { JobStore } from "../scheduler/job-store.js";
 import { createSchedulerTools } from "../scheduler/scheduler-tools.js";
 import { createL2Tools } from "../memory/l2/l2-tools.js";
 import { createPracticeTools } from "./practice-tools.js";
+import { createDocumentTools } from "./document-tools.js";
 import { INNO_SYSTEM_PROMPT } from "./system-prompt.js";
 import { syncProvidersForSubagents } from "./provider-sync.js";
 import { questionBridge } from "./question-bridge.js";
@@ -93,6 +94,12 @@ export function createInnoExtension(
 		// 4. Register L2 Wiki memory tools
 		const l2Tools = createL2Tools(paths.l2DataDir);
 		for (const tool of l2Tools) {
+			pi.registerTool(tool);
+		}
+
+		// 4b. Register document parsing tools
+		const documentTools = createDocumentTools();
+		for (const tool of documentTools) {
 			pi.registerTool(tool);
 		}
 

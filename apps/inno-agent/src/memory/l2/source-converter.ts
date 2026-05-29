@@ -36,9 +36,8 @@ function convertContent(content: string, sourceType: RawSourceType): string {
 		case "pdf":
 		case "word":
 		case "image":
-			throw new Error(
-				`${sourceType.toUpperCase()} 格式转换尚未实现。MVP 阶段仅支持文本、Markdown 和对话片段。`,
-			);
+			// 文本已由 LiteParse 在上游提取，此处直接透传
+			return content;
 	}
 }
 

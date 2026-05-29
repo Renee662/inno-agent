@@ -1,5 +1,6 @@
-import { join } from "node:path";
+import { join, extname } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
+import { copyFileSync } from "node:fs";
 import { ensureDir, writeText } from "../../storage/file-store.js";
 import type { RawSourceType } from "./types.js";
 
@@ -54,5 +55,31 @@ export function saveRaw(
 	ensureDir(dir);
 	const filename = generateFilename(title, sourceType);
 	writeText(join(dir, filename), rawFrontmatter(content, sourceType, sourceUrl) + content);
+	return join("raw", subdir, filename);
+}
+
+/**
+ * Copy an original binary file to data/l2/raw/<subdir>/<filename>.
+ * Used for PDF/Word/Image files where we preserve the original.
+ * Returns the relative path from l2DataDir.
+ */
+export function saveRawFile(
+	l2DataDir: string,
+	title: string,
+	originalFilePath: string,
+	sourceType: RawSourceType,
+): string {
+	const subdir = TYPE_DIR_MAP[sourceType];
+	const dir = join(l2DataDir, "raw", subdir);
+	ensureDir(dir);
+	const date = new Date().toISOString().slice(0, 10);
+	const slug = title
+		.toLowerCase()
+		.replace(/[^a-z0-9\u4e00-\u9fff]+/g, "-")
+		.replace(/^-|-$/g, "")
+		.slice(0, 50);
+	const ext = extname(originalFilePath);
+	const filename = `${date}-${slug}-${randomUUID().slice(0, 6)}${ext}`;
+	copyFileSync(originalFilePath, join(dir, filename));
 	return join("raw", subdir, filename);
 }

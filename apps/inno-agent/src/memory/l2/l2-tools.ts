@@ -2,10 +2,10 @@ import { StringEnum } from "@earendil-works/pi-ai";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { randomUUID, createHash } from "node:crypto";
-import { join } from "node:path";
+import { join, isAbsolute, resolve } from "node:path";
 
 import type { ManifestEntry, RawSourceType } from "./types.js";
-import { saveRaw } from "./raw-store.js";
+import { saveRaw, saveRawFile } from "./raw-store.js";
 import { convertToExtracted } from "./source-converter.js";
 import { appendManifest, readManifest, findManifestByHash } from "./manifest-store.js";
 import {
@@ -19,6 +19,7 @@ import { queryWiki } from "./wiki-query.js";
 import { summarizeContent } from "./summarizer.js";
 import { maintainLinkedWikiPages } from "./wiki-linker.js";
 import { readText } from "../../storage/file-store.js";
+import { parseDocument, DocumentParseError } from "./document-parser.js";
 
 /**
  * Create L2 Wiki memory tools for the Inno Agent.
@@ -30,12 +31,14 @@ export function createL2Tools(l2DataDir: string): ToolDefinition[] {
 		label: "归档到 L2 Wiki",
 		description:
 			"将学习资料归档到 L2 Wiki 知识库。用户说「归档」「保存到知识库」「帮我记下来」或上传资料要求学习/总结时调用。" +
-			"支持文本(text)、Markdown(markdown)、对话片段(conversation)。PDF/Word/Image 暂未实现。",
+			"支持文本(text)、Markdown(markdown)、对话片段(conversation)、PDF(pdf)、Word 文档(word)、图片(image)。" +
+			"文本类内容传 content 参数；文件类内容传 filePath 参数。",
 		parameters: Type.Object({
 			title: Type.String({ description: "资料标题" }),
-			content: Type.String({ description: "要归档的文本内容" }),
-			sourceType: StringEnum(["text", "markdown", "conversation"] as const, {
-				description: "资料类型：text（纯文本）、markdown、conversation（对话片段）",
+			content: Type.Optional(Type.String({ description: "要归档的文本内容（与 filePath 二选一）" })),
+			filePath: Type.Optional(Type.String({ description: "要归档的文件路径（PDF/Word/Image），与 content 二选一" })),
+			sourceType: StringEnum(["text", "markdown", "conversation", "pdf", "word", "image"] as const, {
+				description: "资料类型：text（纯文本）、markdown、conversation（对话片段）、pdf、word、image",
 			}),
 			tags: Type.Optional(Type.Array(Type.String(), { description: "标签列表，如 ['python', 'async']" })),
 			origin: Type.Optional(
@@ -51,7 +54,46 @@ export function createL2Tools(l2DataDir: string): ToolDefinition[] {
 			ensureL2Directories(l2DataDir);
 			const maintenanceContext = readMaintenanceContext(l2DataDir);
 
-			const contentHash = createHash("sha256").update(params.content).digest("hex").slice(0, 16);
+			const sourceType = params.sourceType as RawSourceType;
+			const isFileType = sourceType === "pdf" || sourceType === "word" || sourceType === "image";
+
+			// Resolve content: either from params.content or by parsing a file
+			let content: string;
+			let rawPath: string;
+
+			if (isFileType && params.filePath) {
+				// File-based: parse with LiteParse
+				const workspaceDir = process.env.INNO_WORKSPACE_DIR || process.cwd();
+				const resolvedPath = isAbsolute(params.filePath)
+					? params.filePath
+					: resolve(workspaceDir, params.filePath);
+
+				let parsed;
+				try {
+					parsed = await parseDocument(resolvedPath);
+				} catch (err) {
+					const msg = err instanceof DocumentParseError ? err.message : String(err);
+					return {
+						content: [{ type: "text" as const, text: `文件解析失败: ${msg}` }],
+						details: { error: err instanceof DocumentParseError ? err.code : "parse_error" },
+					};
+				}
+
+				content = parsed.text;
+				// Copy original file to raw storage
+				rawPath = saveRawFile(l2DataDir, params.title, resolvedPath, sourceType);
+			} else if (params.content) {
+				// Text-based: use content directly
+				content = params.content;
+				rawPath = saveRaw(l2DataDir, params.title, content, sourceType, params.url);
+			} else {
+				return {
+					content: [{ type: "text" as const, text: "参数错误：必须提供 content（文本内容）或 filePath（文件路径）。" }],
+					details: { error: "missing_content" },
+				};
+			}
+
+			const contentHash = createHash("sha256").update(content).digest("hex").slice(0, 16);
 
 			// Dedup: check if same content already archived
 			if (!params.force) {
@@ -76,15 +118,11 @@ export function createL2Tools(l2DataDir: string): ToolDefinition[] {
 
 			const id = `l2src_${randomUUID().slice(0, 8)}`;
 			const tags = params.tags ?? [];
-			const sourceType = params.sourceType as RawSourceType;
 
-			// 1. Save raw
-			const rawPath = saveRaw(l2DataDir, params.title, params.content, sourceType, params.url);
+			// Convert to extracted markdown
+			const extractedPath = convertToExtracted(l2DataDir, params.title, content, sourceType);
 
-			// 2. Convert to extracted
-			const extractedPath = convertToExtracted(l2DataDir, params.title, params.content, sourceType);
-
-			// 3. Build manifest entry
+			// Build manifest entry
 			const inferredOrigin = sourceType === "conversation" ? "conversation" : "user_upload";
 			const entry: ManifestEntry = {
 				id,
@@ -105,7 +143,7 @@ export function createL2Tools(l2DataDir: string): ToolDefinition[] {
 				updatedAt: new Date().toISOString(),
 			};
 
-			// 4. Create wiki source page (with LLM summary)
+			// Create wiki source page (with LLM summary)
 			const extractedContent = readText(join(l2DataDir, extractedPath));
 			let summaryBody = `## 摘要\n\n${extractedContent}`;
 			if (ctx.model) {
@@ -124,14 +162,14 @@ export function createL2Tools(l2DataDir: string): ToolDefinition[] {
 			entry.wikiPages = [wikiPagePath, ...linkMaintenance.pages];
 			entry.status = "indexed";
 
-			// 5. Write manifest
+			// Write manifest
 			appendManifest(l2DataDir, entry);
 
-			// 6. Rebuild index
+			// Rebuild index
 			const allEntries = readManifest(l2DataDir);
 			rebuildIndex(l2DataDir, allEntries);
 
-			// 7. Append log
+			// Append log
 			appendLog(
 				l2DataDir,
 				"ingest",
