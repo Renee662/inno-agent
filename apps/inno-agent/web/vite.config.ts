@@ -29,8 +29,22 @@ function uploadExtension(fileName: string, mimeType: string): string {
 	return ".bin";
 }
 
+// pi-web-ui depends on @lmstudio/sdk for model discovery,
+// but inno-agent does not use LM Studio — stub it out to avoid bundling.
+const stubLmStudioPlugin = {
+	name: "stub-lmstudio-sdk",
+	enforce: "pre" as const,
+	resolveId(id: string) {
+		if (id === "@lmstudio/sdk") return "\0stub:@lmstudio/sdk";
+	},
+	load(id: string) {
+		if (id === "\0stub:@lmstudio/sdk") return "export const LMStudioClient = class {};";
+	},
+};
+
 export default defineConfig({
 	plugins: [
+		stubLmStudioPlugin,
 		react(),
 		{
 			name: "link-katex-fonts",
