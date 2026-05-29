@@ -43,7 +43,7 @@ npm --workspace inno-agent-web run build
 
 # ── 4. electron-builder 打包 ──────────────────────────────────────────────────
 echo "▶ 打包 Electron DMG (arm64)…"
-CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac dmg --arm64
+CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac dmg --arm64 --publish never
 
 # ── 5. 完成提示 ───────────────────────────────────────────────────────────────
 DMG="$REPO_ROOT/dist-electron/Inno Agent-${VERSION}-arm64.dmg"
