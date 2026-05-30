@@ -92,7 +92,7 @@ export function WorkspacePanel({ activeTab, mode, width, onTabChange, onModeChan
 
 	return (
 		<aside className="workspace-panel inno-workspace-scope relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-l border-[var(--inno-border)] bg-[var(--inno-workspace-bg)]">
-			{mode !== "full" ? (
+			{mode === "half" || mode === "quarter" ? (
 				<button
 					className="workspace-resize-handle"
 					aria-label={t("workspace.resize") ?? ""}

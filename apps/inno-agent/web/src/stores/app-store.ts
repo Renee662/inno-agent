@@ -2,7 +2,7 @@ import { EventEmitter } from "./event-emitter.js";
 
 export type RightPanelTab = "notebook" | "preview" | "profile" | "skills" | "jobs" | "settings";
 export type SidebarSection = "chat" | "wiki" | "jobs" | "settings";
-export type WorkspaceMode = "collapsed" | "half" | "full";
+export type WorkspaceMode = "collapsed" | "quarter" | "half" | "full";
 
 interface AppStoreEvents {
 	change: void;
@@ -48,7 +48,7 @@ class AppStoreImpl extends EventEmitter<AppStoreEvents> {
 	}
 
 	setWorkspaceWidth(width: number) {
-		this.workspaceWidth = Math.max(320, Math.min(920, Math.round(width)));
+		this.workspaceWidth = Math.max(240, Math.min(920, Math.round(width)));
 		if (typeof window !== "undefined") {
 			window.localStorage.setItem("inno.workspaceWidth", String(this.workspaceWidth));
 		}

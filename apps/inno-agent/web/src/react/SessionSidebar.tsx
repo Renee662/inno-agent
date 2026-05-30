@@ -388,11 +388,16 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 			byWs.get(w.id)!.push(s);
 		}
 		const result: WsGroup[] = [];
+		// Non-temp workspaces first (by recency), then the temp workspace last.
+		const tempGroups: WsGroup[] = [];
 		for (const w of wsState.list) {
 			const sessions = byWs.get(w.id);
 			if (!sessions || sessions.length === 0) continue;
-			result.push({ id: w.id, name: w.name, manageable: !w.isTemp, canCreate: true, sessions });
+			const g: WsGroup = { id: w.id, name: w.name, manageable: !w.isTemp, canCreate: true, sessions };
+			if (w.isTemp) tempGroups.push(g);
+			else result.push(g);
 		}
+		result.push(...tempGroups);
 		if (unknown.length > 0) {
 			result.push({ id: "__unknown__", name: "未分组", manageable: false, canCreate: false, sessions: unknown });
 		}
@@ -410,24 +415,29 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 		})();
 	}, []);
 
-	// Click a workspace group header → load that workspace into the right panel.
+	// Click a workspace group header → load that workspace into the right panel (half screen).
 	const selectWorkspace = useCallback((group: WsGroup) => {
 		if (!group.canCreate) return; // synthetic groups (未分组 / 已归档)
 		void workspaceStore.setActiveWorkspace(group.id);
 		appStore.setRightPanelTab("preview");
-		if (appStore.workspaceMode === "collapsed") appStore.setWorkspaceMode("half");
+		appStore.setWorkspaceWidth(560);
+		appStore.setWorkspaceMode("half");
 	}, []);
 
-	// Start a new chat pre-bound to this workspace.
+	// Start a new chat pre-bound to this workspace → preview its files (quarter, tree only).
 	const newChatIn = useCallback((group: WsGroup) => {
 		sessionsStore.beginNewSessionIn(group.id);
 		void workspaceStore.setActiveWorkspace(group.id);
 		appStore.setRightPanelTab("preview");
-		if (appStore.workspaceMode === "collapsed") appStore.setWorkspaceMode("half");
+		appStore.setWorkspaceWidth(300);
+		appStore.setWorkspaceMode("quarter");
 	}, []);
 
+	// Open a session → preview its workspace files (quarter, tree only).
 	const openSession = useCallback((session: SessionMeta) => {
 		appStore.setRightPanelTab("preview");
+		appStore.setWorkspaceWidth(300);
+		appStore.setWorkspaceMode("quarter");
 		void sessionsStore.openSession(session.id);
 	}, []);
 

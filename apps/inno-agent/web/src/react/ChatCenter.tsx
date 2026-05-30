@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { Paperclip, X, SendHorizonal, Square, RotateCcw } from "lucide-react";
+import { Paperclip, X, SendHorizonal, Square, RotateCcw, Check } from "lucide-react";
 import type { ChatMessage } from "../types/chat.js";
 import { chatStore } from "../stores/chat-store.js";
 import { sessionsStore } from "../stores/sessions-store.js";
@@ -148,12 +148,12 @@ export function ChatCenter() {
 		list: workspacesStore.workspaces,
 	}));
 
-	const reusableWorkspaces = useMemo(
-		() => workspaces.list
-			.filter((w) => !w.isTemp && !w.id.startsWith("channel-"))
-			.slice()
-			.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)),
-		[workspaces.list],
+	// Workspace preselected from the sidebar ("+ 新建对话" on a group), if any.
+	const preselectedWs = useMemo(
+		() => sessions.preselectedWorkspaceId
+			? workspaces.list.find((w) => w.id === sessions.preselectedWorkspaceId) ?? null
+			: null,
+		[sessions.preselectedWorkspaceId, workspaces.list],
 	);
 
 	// Welcome state: brand-new chat without an active session yet.
@@ -167,14 +167,8 @@ export function ChatCenter() {
 		}
 	}, [isWelcome, workspaces.list.length]);
 
-	useEffect(() => {
-		if (wsMode === "existing" && !wsExistingId && reusableWorkspaces.length > 0) {
-			setWsExistingId(reusableWorkspaces[0].id);
-		}
-	}, [wsMode, reusableWorkspaces, wsExistingId]);
-
-	// A workspace preselected from the sidebar ("+ 新建对话" on a group) drives the
-	// chooser to "existing" mode bound to that workspace.
+	// A workspace preselected from the sidebar drives the chooser to "existing"
+	// mode bound to that workspace (and previews it in quarter mode).
 	useEffect(() => {
 		if (sessions.preselectedWorkspaceId) {
 			setWsMode("existing");
@@ -182,13 +176,16 @@ export function ChatCenter() {
 		}
 	}, [sessions.preselectedWorkspaceId]);
 
-	// When picking an existing workspace for a new chat, preview it immediately
-	// (before the first message) so the user sees its files in the right panel.
+	// When a workspace is preselected for a new chat, preview it immediately
+	// (before the first message) in quarter mode so the file tree shows.
 	useEffect(() => {
 		if (isWelcome && wsMode === "existing" && wsExistingId) {
 			void workspaceStore.setActiveWorkspace(wsExistingId);
 			appStore.setRightPanelTab("preview");
-			if (appStore.workspaceMode === "collapsed") appStore.setWorkspaceMode("half");
+			if (appStore.workspaceMode === "collapsed") {
+				appStore.setWorkspaceWidth(300);
+				appStore.setWorkspaceMode("quarter");
+			}
 		}
 	}, [isWelcome, wsMode, wsExistingId]);
 
@@ -216,6 +213,25 @@ export function ChatCenter() {
 		if (!wsExistingId) return { __error: "请选择一个工作区" };
 		return { workspaceId: wsExistingId };
 	}, [wsMode, wsName, wsExistingId]);
+
+	// Create the new workspace + session up-front (before any message) and reveal
+	// it in the right panel so the user can upload files / skills first.
+	const confirmNewWorkspace = useCallback(() => {
+		const trimmed = wsName.trim();
+		if (!trimmed) { setWsError("请填写工作区名称"); return; }
+		setWsError("");
+		void (async () => {
+			try {
+				await sessionsStore.createSessionWith({ newWorkspace: { name: trimmed, isTemp: false } });
+				appStore.setRightPanelTab("preview");
+				appStore.setWorkspaceWidth(560);
+				appStore.setWorkspaceMode("half");
+				setWsName("");
+			} catch (err) {
+				setWsError(err instanceof Error ? err.message : "创建工作区失败");
+			}
+		})();
+	}, [wsName]);
 
 	const handleSend = useCallback(() => {
 		const input = inputRef.current?.value.trim() ?? "";
@@ -381,42 +397,42 @@ export function ChatCenter() {
 						{renderUploadChips()}
 						{renderComposer("有什么想学习或实践的?发送消息开始…")}
 
-						<div className="mt-3 flex flex-wrap items-center gap-2">
-							<span className="text-xs text-slate-400">工作区</span>
-							<ModeChip selected={wsMode === "temp"} onClick={() => setWsMode("temp")}>临时·用完即弃</ModeChip>
-							<ModeChip selected={wsMode === "new"} onClick={() => setWsMode("new")}>新建工作区</ModeChip>
-							<ModeChip
-								selected={wsMode === "existing"}
-								onClick={() => setWsMode("existing")}
-								disabled={reusableWorkspaces.length === 0}
-							>
-								使用已有 ({reusableWorkspaces.length})
-							</ModeChip>
-							{wsMode === "new" ? (
-								<input
-									type="text"
-									placeholder="工作区名称,例如:pandas demo"
-									value={wsName}
-									onChange={(e) => setWsName(e.target.value)}
-									className="ml-1 w-[200px] rounded-full border border-slate-200 bg-white px-2 py-px text-[10px] leading-tight outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
-								/>
-							) : null}
-							{wsMode === "existing" ? (
-								<select
-									value={wsExistingId}
-									onChange={(e) => setWsExistingId(e.target.value)}
-									className="ml-1 w-[200px] rounded-full border border-slate-200 bg-white px-2 py-px text-[10px] leading-tight outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
-								>
-									{reusableWorkspaces.length === 0 ? (
-										<option value="">尚无可复用工作区</option>
-									) : reusableWorkspaces.map((w) => (
-										<option key={w.id} value={w.id}>
-											{w.name}
-										</option>
-									))}
-								</select>
-							) : null}
-						</div>
+						{preselectedWs ? (
+							<div className="mt-3 flex flex-wrap items-center gap-2">
+								<span className="text-xs text-slate-400">工作区</span>
+								<span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-medium text-blue-700 ring-1 ring-blue-100">
+									{preselectedWs.name}
+								</span>
+								<span className="text-[10px] text-slate-400">新对话将创建于此工作区</span>
+							</div>
+						) : (
+							<div className="mt-3 flex flex-wrap items-center gap-2">
+								<span className="text-xs text-slate-400">工作区</span>
+								<ModeChip selected={wsMode === "temp"} onClick={() => setWsMode("temp")}>临时·用完即弃</ModeChip>
+								<ModeChip selected={wsMode === "new"} onClick={() => setWsMode("new")}>新建工作区</ModeChip>
+								{wsMode === "new" ? (
+									<>
+										<input
+											type="text"
+											placeholder="工作区名称,例如:pandas demo"
+											value={wsName}
+											onChange={(e) => setWsName(e.target.value)}
+											onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); confirmNewWorkspace(); } }}
+											className="ml-1 w-[200px] rounded-full border border-slate-200 bg-white px-2 py-px text-[10px] leading-tight outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+										/>
+										<button
+											type="button"
+											onClick={confirmNewWorkspace}
+											disabled={!wsName.trim()}
+											title="创建并绑定工作区(可先上传文件/技能,再开始对话)"
+											className="flex items-center gap-1 rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
+										>
+											<Check size={11} /> 创建并绑定
+										</button>
+									</>
+								) : null}
+							</div>
+						)}
 
 						{wsError ? <p className="mt-2 text-xs text-red-600">{wsError}</p> : null}
 					</div>

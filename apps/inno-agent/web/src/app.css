@@ -154,6 +154,10 @@ inno-app-shell {
 	--workspace-w: 0px;
 }
 
+.app-layout--workspace-quarter {
+	--workspace-w: clamp(240px, var(--inno-workspace-width), 920px);
+}
+
 .app-layout--workspace-half {
 	--workspace-w: clamp(320px, var(--inno-workspace-width), 920px);
 }

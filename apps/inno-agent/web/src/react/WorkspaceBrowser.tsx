@@ -467,8 +467,11 @@ export function WorkspaceBrowser() {
 	const { t } = useTranslation();
 	const treeRef = useRef<TreeApi<ArboristNode>>(null);
 	const skillUploadRef = useRef<HTMLInputElement>(null);
+	const rootRef = useRef<HTMLDivElement>(null);
 	const treeContainerRef = useRef<HTMLDivElement>(null);
 	const [treeHeight, setTreeHeight] = useState(400);
+	const [treeWidth, setTreeWidth] = useState(260);
+	const [panelWidth, setPanelWidth] = useState(600);
 	const [sidebarOpen, setSidebarOpen] = useState(true);
 	const [ctxMenu, setCtxMenu] = useState<CtxMenuState | null>(null);
 	const [deleteConfirm, setDeleteConfirm] = useState<{ ids: string[] } | null>(null);
@@ -486,13 +489,32 @@ export function WorkspaceBrowser() {
 	const sessState = useStoreSnapshot(sessionsStore, () => ({
 		currentSessionId: sessionsStore.currentSessionId,
 	}));
+	// The file tree pane keeps a fixed width; the content preview pane appears
+	// only once the panel is dragged wide enough to fit it beside the tree.
+	const TREE_PANE_WIDTH = 260;
+	const CONTENT_REVEAL_WIDTH = TREE_PANE_WIDTH + 150;
+	const showContent = sidebarOpen ? panelWidth >= CONTENT_REVEAL_WIDTH : true;
 
-	// Measure tree container height for react-window (required by react-arborist)
+	// Measure the panel width to decide whether the content pane fits.
+	useLayoutEffect(() => {
+		const el = rootRef.current;
+		if (!el) return;
+		const ro = new ResizeObserver(([entry]) => {
+			if (entry) setPanelWidth(Math.floor(entry.contentRect.width));
+		});
+		ro.observe(el);
+		return () => ro.disconnect();
+	}, []);
+
+	// Measure tree container size for react-window (required by react-arborist)
 	useLayoutEffect(() => {
 		const el = treeContainerRef.current;
 		if (!el) return;
 		const ro = new ResizeObserver(([entry]) => {
-			if (entry) setTreeHeight(Math.floor(entry.contentRect.height));
+			if (entry) {
+				setTreeHeight(Math.floor(entry.contentRect.height));
+				setTreeWidth(Math.max(180, Math.floor(entry.contentRect.width)));
+			}
 		});
 		ro.observe(el);
 		return () => ro.disconnect();
@@ -635,7 +657,7 @@ export function WorkspaceBrowser() {
 	const busy = state.isMutating || state.isLoadingTree;
 
 	return (
-		<div className={`grid h-full min-h-0 gap-3 bg-transparent p-3 transition-[grid-template-columns] duration-200 ${sidebarOpen ? "grid-cols-[260px_minmax(0,1fr)]" : "grid-cols-[0px_minmax(0,1fr)]"}`}>
+		<div ref={rootRef} className={`grid h-full min-h-0 gap-3 bg-transparent p-3 transition-[grid-template-columns] duration-200 ${showContent ? (sidebarOpen ? "grid-cols-[260px_minmax(0,1fr)]" : "grid-cols-[0px_minmax(0,1fr)]") : "grid-cols-[minmax(0,1fr)]"}`}>
 			{/* --- Tree pane --- */}
 			<aside
 				className={`inno-workspace-card relative flex min-h-0 flex-col overflow-hidden rounded-lg transition-opacity duration-200 ${isDragOver ? "border-blue-400 bg-blue-50" : ""} ${sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}
@@ -677,7 +699,7 @@ export function WorkspaceBrowser() {
 						<Tree<ArboristNode>
 							ref={treeRef}
 							data={arboristData}
-							width={260}
+							width={treeWidth}
 							height={treeHeight}
 							indent={16}
 							rowHeight={28}
@@ -703,12 +725,14 @@ export function WorkspaceBrowser() {
 			</aside>
 
 			{/* --- Preview / Edit pane --- */}
-			<section className="inno-workspace-card flex min-w-0 min-h-0 flex-col overflow-hidden rounded-lg">
-				<div className="flex min-h-0 flex-1 flex-col">
-					<FileContentPane onToggleSidebar={() => setSidebarOpen((v) => !v)} sidebarOpen={sidebarOpen} />
-				</div>
-				<TerminalDrawer />
-			</section>
+			{showContent ? (
+				<section className="inno-workspace-card flex min-w-0 min-h-0 flex-col overflow-hidden rounded-lg">
+					<div className="flex min-h-0 flex-1 flex-col">
+						<FileContentPane onToggleSidebar={() => setSidebarOpen((v) => !v)} sidebarOpen={sidebarOpen} />
+					</div>
+					<TerminalDrawer />
+				</section>
+			) : null}
 
 			{/* Context Menu */}
 			{ctxMenu && <ContextMenu state={ctxMenu} onClose={() => setCtxMenu(null)} treeRef={treeRef} />}
