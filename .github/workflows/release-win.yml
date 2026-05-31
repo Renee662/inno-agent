@@ -53,9 +53,6 @@ jobs:
       # ── 7. 打包 Electron（NSIS exe + MSI）───────────────────────────────────
       - name: Package Electron (Windows)
         run: npx electron-builder --win --x64 --publish never
-        env:
-          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
-          ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
 
       # ── 8. 读取实际版本号 ────────────────────────────────────────────────────
       - name: Read version
