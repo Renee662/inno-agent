@@ -497,6 +497,24 @@ function findSkillFile(dir: string): string | null {
 }
 
 function validateZipEntries(zipPath: string): void {
+	if (process.platform === "win32") {
+		// Windows: list zip entries via .NET ZipFile API (no system unzip).
+		const ps = `Add-Type -AssemblyName System.IO.Compression.FileSystem; ` +
+			`$zip = [System.IO.Compression.ZipFile]::OpenRead('${zipPath.replace(/'/g, "''")}'); ` +
+			`try { $zip.Entries | ForEach-Object { $_.FullName } } finally { $zip.Dispose() }`;
+		const result = spawnSync("powershell.exe", ["-NoProfile", "-Command", ps], { encoding: "utf-8" });
+		if (result.status !== 0) {
+			throw new Error((result.stderr || "").trim() || "Unable to inspect zip file");
+		}
+		for (const rawLine of result.stdout.split(/\r?\n/)) {
+			const entry = rawLine.trim();
+			if (!entry) continue;
+			if (entry.startsWith("/") || entry.startsWith("\\") || entry.includes("..")) {
+				throw new Error(`Unsafe zip entry path: ${entry}`);
+			}
+		}
+		return;
+	}
 	const result = spawnSync("/usr/bin/unzip", ["-Z1", zipPath], { encoding: "utf-8" });
 	if (result.status !== 0) {
 		throw new Error(result.stderr.trim() || "Unable to inspect zip file");
@@ -520,9 +538,20 @@ function installSkillZip(fileName: string, data: Buffer, targetRoot: string = sk
 
 	try {
 		validateZipEntries(zipPath);
-		const unzipResult = spawnSync("/usr/bin/unzip", ["-qq", "-o", zipPath, "-d", extractDir], { encoding: "utf-8" });
-		if (unzipResult.status !== 0) {
-			throw new Error(unzipResult.stderr.trim() || "Unable to unzip skill package");
+		if (process.platform === "win32") {
+			// Windows: extract via .NET ZipFile.ExtractToDirectory (no system unzip).
+			const ps = `Add-Type -AssemblyName System.IO.Compression.FileSystem; ` +
+				`[System.IO.Compression.ZipFile]::ExtractToDirectory(` +
+				`'${zipPath.replace(/'/g, "''")}', '${extractDir.replace(/'/g, "''")}')`;
+			const unzipResult = spawnSync("powershell.exe", ["-NoProfile", "-Command", ps], { encoding: "utf-8" });
+			if (unzipResult.status !== 0) {
+				throw new Error((unzipResult.stderr || "").trim() || "Unable to unzip skill package");
+			}
+		} else {
+			const unzipResult = spawnSync("/usr/bin/unzip", ["-qq", "-o", zipPath, "-d", extractDir], { encoding: "utf-8" });
+			if (unzipResult.status !== 0) {
+				throw new Error(unzipResult.stderr.trim() || "Unable to unzip skill package");
+			}
 		}
 
 		const skillFile = findSkillFile(extractDir);
@@ -2754,18 +2783,23 @@ const server = createServer(async (req, res) => {
 				json(res, 400, { error: "Missing prompt" });
 				return;
 			}
+			const rawImages = Array.isArray(body.images) ? body.images : [];
+			const images = rawImages
+				.filter((img): img is { data: string; mimeType: string } =>
+					img && typeof img.data === "string" && typeof img.mimeType === "string")
+				.map((img) => ({ type: "image" as const, data: img.data, mimeType: img.mimeType }));
 			// Use atomic switch+prompt when a specific session is requested.
 			const requestedSessionId = typeof body.sessionId === "string" ? body.sessionId : null;
 			let output: string;
 			if (requestedSessionId) {
 				const sessionPath = sessionFileFromId(join(dataDir, "sessions"), requestedSessionId);
 				if (sessionPath && existsSync(sessionPath)) {
-					output = await runPromptInSession(sessionPath, prompt);
+					output = await runPromptInSession(sessionPath, prompt, images.length ? images : undefined);
 				} else {
-					output = await runPromptSerialized(prompt);
+					output = await runPromptSerialized(prompt, images.length ? images : undefined);
 				}
 			} else {
-				output = await runPromptSerialized(prompt);
+				output = await runPromptSerialized(prompt, images.length ? images : undefined);
 			}
 			recordCurrentSessionChannel("web", requestedSessionId || undefined);
 			maybeAutoGenerateTopic(requestedSessionId || getCurrentSessionId());
@@ -2795,6 +2829,12 @@ const server = createServer(async (req, res) => {
 				json(res, 400, { error: "Missing prompt" });
 				return;
 			}
+			const rawImages = Array.isArray(body.images) ? body.images : [];
+			const images = rawImages
+				.filter((img): img is { data: string; mimeType: string } =>
+					img && typeof img.data === "string" && typeof img.mimeType === "string")
+				.map((img) => ({ type: "image" as const, data: img.data, mimeType: img.mimeType }));
+			const imageArgs = images.length ? images : undefined;
 
 			// Resolve target session path for atomic switch+stream.
 			const requestedSessionId = typeof body.sessionId === "string" ? body.sessionId : null;
@@ -2863,8 +2903,8 @@ const server = createServer(async (req, res) => {
 				// Use atomic switch+stream when a specific session is requested,
 				// preventing race conditions with channel session switches.
 				const fullText = targetSessionPath
-					? await runPromptStreamingInSession(targetSessionPath, prompt, onEvent)
-					: await runPromptStreaming(prompt, onEvent);
+					? await runPromptStreamingInSession(targetSessionPath, prompt, onEvent, imageArgs)
+					: await runPromptStreaming(prompt, onEvent, imageArgs);
 				recordCurrentSessionChannel("web", capturedSessionId);
 				if (!aborted) sseWrite({ type: "done", fullText });
 				maybeAutoGenerateTopic(capturedSessionId);

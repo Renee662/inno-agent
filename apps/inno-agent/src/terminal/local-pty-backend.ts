@@ -1,5 +1,6 @@
 import { chmodSync, existsSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
+import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { spawn, type IPty } from "node-pty";
 
@@ -62,8 +63,12 @@ export interface PtySession {
 }
 
 function defaultShell(): string {
-	if (process.env.SHELL) return process.env.SHELL;
+	// On Windows we always use PowerShell, ignoring any inherited POSIX-style
+	// SHELL env var (e.g. from Git Bash). The terminal-session-manager generates
+	// PowerShell-only sentinel-wrapping syntax for win32, so a bash-flavored
+	// SHELL would mismatch and break `Run`.
 	if (process.platform === "win32") return "powershell.exe";
+	if (process.env.SHELL) return process.env.SHELL;
 	return "/bin/bash";
 }
 
@@ -100,7 +105,9 @@ export class LocalPtyBackend {
 		const env = sanitizeEnv(opts.env ?? process.env);
 		// A non-existent cwd makes node-pty fail with the same opaque
 		// "posix_spawnp failed." error, so fall back to the user's home dir.
-		const cwd = existsSync(opts.cwd) ? opts.cwd : (process.env.HOME || process.cwd());
+		// Use os.homedir() — process.env.HOME is unset on Windows (Windows uses
+		// USERPROFILE).
+		const cwd = existsSync(opts.cwd) ? opts.cwd : (homedir() || process.cwd());
 		const pty = spawn(shell, [], {
 			name: "xterm-256color",
 			cols: opts.cols,

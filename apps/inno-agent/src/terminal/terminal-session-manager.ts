@@ -153,7 +153,9 @@ export class TerminalSessionManager {
 		ts.sentinelTag = `${SENTINEL_PREFIX}${record.id}`;
 		ts.sentinelDone = false;
 
-		const wrapped = `( ${command} ) ; printf '\\n%s %d\\n' "${ts.sentinelTag}" "$?"`;
+		const wrapped = process.platform === "win32"
+			? `& { ${command} }; Write-Host ("\`n{0} {1}" -f "${ts.sentinelTag}", $LASTEXITCODE)`
+			: `( ${command} ) ; printf '\\n%s %d\\n' "${ts.sentinelTag}" "$?"`;
 		// \e[200~ ... \e[201~ = bracketed paste; \r submits.
 		const BRACKETED_PASTE_START = "\x1b[200~";
 		const BRACKETED_PASTE_END = "\x1b[201~";
