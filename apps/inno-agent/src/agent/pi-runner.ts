@@ -238,6 +238,19 @@ export function getSession(): AgentSession {
 }
 
 /**
+ * Abort the currently running agent prompt, releasing the enqueue queue.
+ * Safe to call even when no prompt is running.
+ */
+export async function abortCurrentPrompt(): Promise<void> {
+	if (!_runtime) return;
+	try {
+		await _runtime.session.abort();
+	} catch {
+		// ignore — session may already be idle
+	}
+}
+
+/**
  * Return current runtime session id.
  */
 export function getCurrentSessionId(): string {

@@ -21,7 +21,7 @@ import {
 	applyWorkspaceCwd,
 	setWorkspaceCwdResolver,
 } from "./agent/pi-runner.js";
-import { completePromptOnce, runPromptSerialized, runPromptStreaming, runPromptStreamingInSession, runPromptInSession } from "./agent/pi-runner.js";
+import { completePromptOnce, runPromptSerialized, runPromptStreaming, runPromptStreamingInSession, runPromptInSession, abortCurrentPrompt } from "./agent/pi-runner.js";
 import type { ImageContent } from "@earendil-works/pi-ai";
 import { ChannelRegistry } from "./channels/channel.js";
 import { FeishuChannel } from "./channels/feishu/feishu-channel.js";
@@ -2887,6 +2887,7 @@ const server = createServer(async (req, res) => {
 				aborted = true;
 				questionBridge.setEmitter(null);
 				questionBridge.cancel();
+				void abortCurrentPrompt();
 			});
 
 			questionBridge.setEmitter(sseWrite);
