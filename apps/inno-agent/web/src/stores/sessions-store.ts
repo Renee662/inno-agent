@@ -60,7 +60,7 @@ class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 	currentSessionId: string | null = null;
 	isLoading = false;
 	openingSessionId: string | null = null;
-	channelFilter: SessionChannel | null = "web";
+	channelFilter: SessionChannel | null = null;
 	searchQuery = "";
 	/** When true, ChatCenter shows the workspace chooser instead of opening a session. */
 	pendingNewSession = false;

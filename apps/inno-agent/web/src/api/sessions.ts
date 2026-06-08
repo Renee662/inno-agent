@@ -11,6 +11,8 @@ export interface SessionMeta {
 	messageCount: number;
 	preview: string;
 	channels: SessionChannel[];
+	/** Immutable birthplace of the session (web/cli/feishu/wechat/scheduler). */
+	origin?: SessionChannel;
 	archived?: boolean;
 }
 

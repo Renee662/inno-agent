@@ -14,6 +14,11 @@ export interface ChannelToolsDeps {
 	getCurrentSessionId?: () => string;
 	/** Fallback workspace root (CLI / no registry). */
 	workspaceDir: string;
+	/**
+	 * Tag the active session as having interacted with a channel. Called after a
+	 * successful file send so the session picks up the channel badge in the UI.
+	 */
+	recordChannelInteraction?: (channel: ChannelName) => void;
 }
 
 /**
@@ -178,6 +183,14 @@ export function createChannelTools(deps: ChannelToolsDeps): ToolDefinition[] {
 					}],
 					details: { error: "send_failed", channel: channelName, message: msg } as Record<string, unknown>,
 				};
+			}
+
+			// Tag the active session as having interacted with this channel so the
+			// UI shows the channel badge (best-effort — never fail the send on this).
+			try {
+				deps.recordChannelInteraction?.(channelName);
+			} catch {
+				// ignore tagging failures
 			}
 
 			return {

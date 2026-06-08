@@ -75,8 +75,9 @@ const skillsDir = paths.skillsDir;
 const channelRegistry = new ChannelRegistry(join(dataDir, "channels", "default-targets.json"));
 const workspaceRegistry = new WorkspaceRegistry(paths.workspaceDir, dataDir);
 workspaceRegistry.ensureBootstrapped();
-// One-time: bind legacy unbound sessions (which used to fall back to the public
-// workspace) to the now-ordinary default workspace so their files stay reachable.
+// One-time: bind legacy unbound sessions to the default workspace IF it still
+// exists (older installs). On fresh installs the default workspace is gone, so
+// migrateUnboundSessions no-ops and unbound sessions fall back to tmp.
 try {
 	const sessionFiles = existsSync(paths.sessionDir)
 		? readdirSync(paths.sessionDir).filter((f) => f.endsWith(".jsonl"))
@@ -973,6 +974,8 @@ interface SessionSummary {
 	messageCount: number;
 	preview: string;
 	channels: SessionChannel[];
+	/** Immutable birthplace of the session (web/cli/feishu/wechat/scheduler). */
+	origin?: SessionChannel;
 }
 
 type SessionTopicMetadata = Record<string, { topic: string; updatedAt: string; generated?: boolean }>;
@@ -1148,7 +1151,7 @@ function parseSessionFile(filePath: string): { summary: SessionSummary; messages
 	}
 }
 
-type SessionChannelMetadata = Record<string, { channels: SessionChannel[]; updatedAt: string }>;
+type SessionChannelMetadata = Record<string, { channels: SessionChannel[]; origin?: SessionChannel; updatedAt: string }>;
 
 function sessionChannelMetadataPath(): string {
 	return join(dataDir, "sessions", "channels.json");
@@ -1166,39 +1169,78 @@ function mergeChannels(a: SessionChannel[], b: SessionChannel[]): SessionChannel
 	return Array.from(new Set([...a, ...b])).sort();
 }
 
-function recordCurrentSessionChannel(channel: SessionChannel, explicitSessionId?: string): void {
+function recordCurrentSessionChannel(
+	channel: SessionChannel,
+	explicitSessionId?: string,
+	options?: { setOriginIfEmpty?: boolean },
+): void {
 	const id = explicitSessionId || (() => {
 		const sessionFile = getSession().sessionFile;
 		return sessionFile ? basename(sessionFile) : "";
 	})();
 	if (!id) return;
 	const metadata = readSessionChannelMetadata();
+	const prev = metadata[id];
 	metadata[id] = {
-		channels: mergeChannels(metadata[id]?.channels ?? [], [channel]),
+		channels: mergeChannels(prev?.channels ?? [], [channel]),
+		// origin is the immutable birthplace of the session: set once and never
+		// overwritten. Interaction tagging (e.g. a web session pushing a file to
+		// feishu) must NOT change origin, so it omits setOriginIfEmpty.
+		origin: prev?.origin ?? (options?.setOriginIfEmpty ? channel : undefined),
 		updatedAt: new Date().toISOString(),
 	};
 	writeJson(sessionChannelMetadataPath(), metadata);
 }
 
+/** Derive a session's origin, with backfill for legacy sessions lacking one. */
+function deriveOrigin(meta: { channels: SessionChannel[]; origin?: SessionChannel } | undefined): SessionChannel {
+	if (meta?.origin) return meta.origin;
+	// Legacy backfill: prefer the first non-web channel the session touched
+	// (channel-native sessions), otherwise treat it as web.
+	const nonWeb = (meta?.channels ?? []).find((c) => c !== "web");
+	return nonWeb ?? "web";
+}
+
 function withRecordedChannels(summary: SessionSummary, metadata: SessionChannelMetadata): SessionSummary {
-	const explicit = metadata[summary.id]?.channels ?? [];
+	const meta = metadata[summary.id];
+	const explicit = meta?.channels ?? [];
 	if (explicit.length > 0) {
 		// channels.json is the source of truth — merge with content-detected channels
 		// but exclude the empty-array fallback from parseSessionFile.
 		const contentChannels = summary.channels; // may be [] if nothing detected from JSONL
-		return { ...summary, channels: mergeChannels(contentChannels, explicit) };
+		return { ...summary, channels: mergeChannels(contentChannels, explicit), origin: deriveOrigin(meta) };
 	}
 	// No explicit metadata — use content-detected channels, or fall back to "cli"
 	// for legacy sessions that predate channel tracking.
+	const channels = summary.channels.length > 0 ? summary.channels : ["cli" as SessionChannel];
 	return {
 		...summary,
-		channels: summary.channels.length > 0 ? summary.channels : ["cli"],
+		channels,
+		origin: deriveOrigin({ channels }),
 	};
 }
 
 function withRecordedTopic(summary: SessionSummary, metadata: SessionTopicMetadata): SessionSummary {
 	const topic = metadata[summary.id]?.topic?.trim();
 	return topic ? { ...summary, name: topic } : summary;
+}
+
+/**
+ * CLI-origin sessions are created by the terminal agent, which never touches
+ * the workspace registry, so they stay unbound and fall back to tmp. Lazily
+ * bind them to the dedicated CLI workspace so they group under "CLI 区".
+ */
+function bindCliSessionWorkspace(summary: SessionSummary): SessionSummary {
+	if (summary.origin !== "cli") return summary;
+	try {
+		if (!workspaceRegistry.isSessionBound(summary.id)) {
+			const ws = workspaceRegistry.ensureChannelWorkspace("cli");
+			workspaceRegistry.bindSession(summary.id, ws.id);
+		}
+	} catch {
+		// best-effort — never fail the listing on a binding hiccup
+	}
+	return summary;
 }
 
 function cleanGeneratedTopic(raw: string): string {
@@ -1762,6 +1804,7 @@ const server = createServer(async (req, res) => {
 						.map((file) => parseSessionFile(join(sessionDir, file))?.summary)
 						.filter((summary): summary is SessionSummary => Boolean(summary))
 						.map((summary) => withRecordedChannels(summary, channelMetadata))
+						.map((summary) => bindCliSessionWorkspace(summary))
 						.map((summary) => withRecordedTopic(summary, topicMetadata))
 						.map((summary) => ({ ...summary, archived: archiveMetadata[summary.id] === true }))
 						.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
@@ -2949,7 +2992,7 @@ const server = createServer(async (req, res) => {
 			} else {
 				output = await runPromptSerialized(prompt, images.length ? images : undefined);
 			}
-			recordCurrentSessionChannel("web", requestedSessionId || undefined);
+			recordCurrentSessionChannel("web", requestedSessionId || undefined, { setOriginIfEmpty: true });
 			maybeAutoGenerateTopic(requestedSessionId || getCurrentSessionId());
 			json(res, 200, { response: output });
 			return;
@@ -3054,7 +3097,7 @@ const server = createServer(async (req, res) => {
 				const fullText = targetSessionPath
 					? await runPromptStreamingInSession(targetSessionPath, prompt, onEvent, imageArgs)
 					: await runPromptStreaming(prompt, onEvent, imageArgs);
-				recordCurrentSessionChannel("web", capturedSessionId);
+				recordCurrentSessionChannel("web", capturedSessionId, { setOriginIfEmpty: true });
 				if (!aborted) sseWrite({ type: "done", fullText });
 				maybeAutoGenerateTopic(capturedSessionId);
 			} catch (err) {
@@ -3100,6 +3143,7 @@ initSession(config, paths, channelRegistry, {
 		workspaceRegistry,
 		runRecordStore,
 		getCurrentSessionId,
+		recordChannelInteraction: (channel) => recordCurrentSessionChannel(channel as SessionChannel),
 	},
 })
 	.then(() => {
@@ -3112,7 +3156,7 @@ initSession(config, paths, channelRegistry, {
 			runPromptInSession,
 			createNewSession,
 			getCurrentSessionId,
-			recordSessionChannel: (ch, sid?) => recordCurrentSessionChannel(ch as SessionChannel, sid),
+			recordSessionChannel: (ch, sid?) => recordCurrentSessionChannel(ch as SessionChannel, sid, { setOriginIfEmpty: true }),
 			maybeAutoGenerateTopic,
 			onSessionCreated: (sessionId, channel) => {
 				// Channel-originated sessions bind to a fixed per-channel workspace

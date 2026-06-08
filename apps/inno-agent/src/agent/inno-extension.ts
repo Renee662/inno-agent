@@ -21,6 +21,7 @@ import { INNO_SYSTEM_PROMPT } from "./system-prompt.js";
 import { syncProvidersForSubagents } from "./provider-sync.js";
 import { questionBridge } from "./question-bridge.js";
 import type { ChannelRegistry } from "../channels/channel.js";
+import type { ChannelName } from "../channels/types.js";
 import type { RuntimePaths } from "../runtime.js";
 import type { WorkspaceRegistry } from "../workspace/workspace-registry.js";
 import type { RunRecordStore } from "../terminal/run-record-store.js";
@@ -46,6 +47,8 @@ export interface InnoExtensionDeps {
 	workspaceRegistry?: WorkspaceRegistry;
 	runRecordStore?: RunRecordStore;
 	getCurrentSessionId?: () => string;
+	/** Tag the active session as having interacted with a channel (file send, etc.). */
+	recordChannelInteraction?: (channel: ChannelName) => void;
 }
 
 /** File name for per-workspace agent context, loaded into the prompt each turn. */
@@ -171,6 +174,7 @@ export function createInnoExtension(
 				workspaceRegistry: deps?.workspaceRegistry,
 				getCurrentSessionId: deps?.getCurrentSessionId,
 				workspaceDir: paths.workspaceDir,
+				recordChannelInteraction: deps?.recordChannelInteraction,
 			});
 			for (const tool of channelTools) {
 				pi.registerTool(tool);

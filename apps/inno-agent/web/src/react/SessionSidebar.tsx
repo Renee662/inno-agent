@@ -72,6 +72,38 @@ function channelClass(channel: SessionChannel): string {
 	return classes[channel] ?? classes.unknown;
 }
 
+/**
+ * Outline (interaction) badge: the session merely interacted with this channel
+ * (e.g. a web session that pushed a file to feishu). Distinct from the solid
+ * origin badge (channelClass), which marks where the session was born.
+ */
+function channelInteractionClass(channel: SessionChannel): string {
+	const classes: Record<string, string> = {
+		cli: "bg-transparent text-blue-500 ring-1 ring-blue-300/70",
+		web: "bg-transparent text-slate-500 ring-1 ring-slate-300/70",
+		feishu: "bg-transparent text-emerald-500 ring-1 ring-emerald-300/70",
+		scheduler: "bg-transparent text-amber-500 ring-1 ring-amber-300/70",
+		qq: "bg-transparent text-cyan-500 ring-1 ring-cyan-300/70",
+		wechat: "bg-transparent text-lime-500 ring-1 ring-lime-300/70",
+		unknown: "bg-transparent text-slate-400 ring-1 ring-slate-200/70",
+	};
+	return classes[channel] ?? classes.unknown;
+}
+
+/**
+ * Order a session's channel badges: the origin channel first (solid), then the
+ * remaining interaction channels (outline). De-duplicates and keeps a stable
+ * display order.
+ */
+function orderedSessionChannels(session: SessionMeta): Array<{ channel: SessionChannel; isOrigin: boolean }> {
+	const origin = session.origin;
+	const rest = session.channels.filter((c) => c !== origin);
+	const ordered: Array<{ channel: SessionChannel; isOrigin: boolean }> = [];
+	if (origin) ordered.push({ channel: origin, isOrigin: true });
+	for (const c of rest) ordered.push({ channel: c, isOrigin: false });
+	return ordered;
+}
+
 function channelFilterClass(channel: SessionChannel | null, active: boolean): string {
 	if (!active) return "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50 hover:text-slate-700 hover:ring-slate-300";
 	if (!channel) return "bg-slate-800 text-white ring-1 ring-slate-800";
@@ -285,9 +317,13 @@ function SessionCard({
 			{/* Bottom row: channels + actions */}
 			<div className="mt-1.5 flex items-center justify-between gap-1">
 				<div className="flex flex-wrap items-center gap-1">
-					{session.channels.map((ch) => (
-						<span key={ch} className={`rounded px-1.5 py-px text-[9px] font-medium leading-none ${channelClass(ch)}`}>
-							{channelLabel(ch)}
+					{orderedSessionChannels(session).map(({ channel, isOrigin }) => (
+						<span
+							key={channel}
+							title={isOrigin ? `来源：${channelLabel(channel)}` : `交互过：${channelLabel(channel)}`}
+							className={`rounded px-1.5 py-px text-[9px] font-medium leading-none ${isOrigin ? channelClass(channel) : channelInteractionClass(channel)}`}
+						>
+							{channelLabel(channel)}
 						</span>
 					))}
 				</div>
@@ -388,14 +424,30 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 			byWs.get(w.id)!.push(s);
 		}
 		const result: WsGroup[] = [];
-		// Non-temp workspaces first (by recency), then the temp workspace last.
+		// Fixed ordering: user project workspaces (by recency) → channel workspaces
+		// (feishu → wechat → cli) → temp workspace → unknown → archived.
+		const CHANNEL_WS_ORDER = ["channel-feishu", "channel-wechat", "channel-cli"];
+		const channelGroups = new Map<string, WsGroup>();
+		const projectGroups: WsGroup[] = [];
 		const tempGroups: WsGroup[] = [];
 		for (const w of wsState.list) {
 			const sessions = byWs.get(w.id);
 			if (!sessions || sessions.length === 0) continue;
-			const g: WsGroup = { id: w.id, name: w.name, manageable: !w.isTemp, canCreate: true, sessions };
-			if (w.isTemp) tempGroups.push(g);
-			else result.push(g);
+			const g: WsGroup = { id: w.id, name: w.name, manageable: !w.isTemp && !CHANNEL_WS_ORDER.includes(w.id), canCreate: true, sessions };
+			if (w.isTemp) {
+				tempGroups.push(g);
+			} else if (CHANNEL_WS_ORDER.includes(w.id)) {
+				channelGroups.set(w.id, g);
+			} else {
+				projectGroups.push(g);
+			}
+		}
+		// Project workspaces keep their recency order (wsState.list is sorted by updatedAt).
+		result.push(...projectGroups);
+		// Channel workspaces in fixed order.
+		for (const id of CHANNEL_WS_ORDER) {
+			const g = channelGroups.get(id);
+			if (g) result.push(g);
 		}
 		result.push(...tempGroups);
 		if (unknown.length > 0) {

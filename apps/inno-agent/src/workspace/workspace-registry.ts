@@ -38,6 +38,7 @@ const CHANNEL_WORKSPACE_NAMES: Record<string, string> = {
 	feishu: "飞书",
 	wechat: "微信",
 	qq: "QQ",
+	cli: "CLI",
 };
 
 // ---------------------------------------------------------------------------
@@ -94,28 +95,21 @@ export class WorkspaceRegistry {
 		writeJson(this.sessionMapPath(), map);
 	}
 
-	/** Ensure default + shared tmp workspaces exist and their directories are present. */
+	/** Ensure the shared tmp workspace exists; preserve a legacy default if present. */
 	ensureBootstrapped(): void {
 		ensureDir(this.workspaceDir);
-		ensureDir(join(this.workspaceDir, DEFAULT_WORKSPACE_REL_PATH));
 		ensureDir(join(this.workspaceDir, TEMP_WORKSPACE_REL_PATH));
 		const reg = this.loadRegistry();
 		const now = new Date().toISOString();
 		let changed = false;
 
+		// The default workspace is no longer auto-created (web sessions fall back
+		// to tmp). We only preserve/normalize it when a legacy install still has
+		// one bound to existing sessions; never recreate it once removed.
 		const defaultIdx = reg.workspaces.findIndex((w) => w.id === DEFAULT_WORKSPACE_ID);
-		if (defaultIdx < 0) {
-			reg.workspaces.unshift({
-				id: DEFAULT_WORKSPACE_ID,
-				name: "默认工作区",
-				relPath: DEFAULT_WORKSPACE_REL_PATH,
-				createdAt: now,
-				updatedAt: now,
-				isTemp: false,
-			});
-			changed = true;
-		} else {
+		if (defaultIdx >= 0) {
 			const def = reg.workspaces[defaultIdx];
+			ensureDir(join(this.workspaceDir, DEFAULT_WORKSPACE_REL_PATH));
 			// Legacy installs labelled this the shared "公共空间"; it is now an
 			// ordinary, deletable workspace with no special fallback role.
 			if (def.name === "公共空间") { def.name = "默认工作区"; changed = true; }
@@ -352,6 +346,12 @@ export class WorkspaceRegistry {
 	getSessionWorkspaceId(sessionId: string): string {
 		const map = this.loadSessionMap();
 		return map[sessionId] ?? TEMP_WORKSPACE_ID;
+	}
+
+	/** Whether this session has an explicit workspace binding (vs the tmp fallback). */
+	isSessionBound(sessionId: string): boolean {
+		const map = this.loadSessionMap();
+		return sessionId in map;
 	}
 
 	bindSession(sessionId: string, workspaceId: string): boolean {
