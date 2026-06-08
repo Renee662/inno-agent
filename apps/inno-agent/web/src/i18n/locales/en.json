@@ -122,7 +122,14 @@
     "noFile": "No file selected",
     "selectFile": "Select a file from the workspace",
     "noPreview": "No preview",
-    "binaryFile": "Binary file"
+    "binaryFile": "Binary file",
+    "emptyTable": "Empty table",
+    "tableRows": "{{count}} rows",
+    "officeParsing": "Extracting document text...",
+    "officeNote": "Text extracted for preview · formatting may differ",
+    "officeUnavailable": "Preview unavailable",
+    "pageCount": "{{count}} pages",
+    "page": "Page"
   },
   "profile": {
     "title": "Learner Profile",

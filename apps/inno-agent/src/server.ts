@@ -548,6 +548,50 @@ function validateZipEntries(zipPath: string): void {
 	}
 }
 
+/**
+ * Build a `Content-Disposition: attachment` header value that survives
+ * non-ASCII filenames. Falls back to a sanitized ASCII name plus the RFC 5987
+ * `filename*` form so browsers pick the UTF-8 variant when supported.
+ */
+function contentDispositionAttachment(fileName: string): string {
+	const asciiFallback = fileName.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
+	const encoded = encodeURIComponent(fileName);
+	return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
+}
+
+/**
+ * Zip a directory and return the archive as a Buffer.
+ *
+ * Uses the system `zip` on macOS/Linux and PowerShell `Compress-Archive` on
+ * Windows so we avoid pulling in a new dependency. The archive is built in a
+ * temp dir and read back into memory (workspace folders are expected to be
+ * small enough for an in-memory download).
+ */
+function zipDirectory(dirPath: string): Buffer {
+	const tempRoot = join(tmpdir(), `inno-zip-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+	const zipPath = join(tempRoot, "archive.zip");
+	ensureDir(tempRoot);
+	try {
+		if (process.platform === "win32") {
+			const ps = `Compress-Archive -Path '${dirPath.replace(/'/g, "''")}\\*' ` +
+				`-DestinationPath '${zipPath.replace(/'/g, "''")}' -Force`;
+			const result = spawnSync("powershell.exe", ["-NoProfile", "-Command", ps], { encoding: "utf-8" });
+			if (result.status !== 0) {
+				throw new Error((result.stderr || "").trim() || "Unable to create zip archive");
+			}
+		} else {
+			// `-r` recurse, run inside the dir so paths are relative to it.
+			const result = spawnSync("/usr/bin/zip", ["-r", "-q", zipPath, "."], { cwd: dirPath, encoding: "utf-8" });
+			if (result.status !== 0) {
+				throw new Error((result.stderr || "").trim() || "Unable to create zip archive");
+			}
+		}
+		return readFileSync(zipPath);
+	} finally {
+		rmSync(tempRoot, { recursive: true, force: true });
+	}
+}
+
 function installSkillZip(fileName: string, data: Buffer, targetRoot: string = skillsDir): { name: string; filePath: string } {
 	const fallbackName = slugifySkillName(basename(fileName, extname(fileName)));
 	const tempRoot = join(tmpdir(), `inno-skill-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -855,17 +899,24 @@ function contentTypeForWorkspaceFile(filePath: string): string {
 	if (ext === ".gif") return "image/gif";
 	if (ext === ".svg") return "image/svg+xml";
 	if (ext === ".webp") return "image/webp";
+	if (ext === ".docx") return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+	if (ext === ".xlsx") return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+	if (ext === ".pptx") return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 	return TEXT_PREVIEW_EXTENSIONS.has(ext) ? "text/plain; charset=utf-8" : "application/octet-stream";
 }
 
 const TEXT_NOEXT_NAMES = new Set(["makefile", "dockerfile", "gemfile", "rakefile", "procfile", "vagrantfile"]);
 
-function workspaceFileKind(filePath: string): "markdown" | "html" | "pdf" | "image" | "text" | "binary" {
+/** Office document extensions previewable via LiteParse text extraction. */
+const OFFICE_PREVIEW_EXTENSIONS = new Set([".docx", ".xlsx", ".pptx"]);
+
+function workspaceFileKind(filePath: string): "markdown" | "html" | "pdf" | "image" | "office" | "text" | "binary" {
 	const ext = extname(filePath).toLowerCase();
 	if (ext === ".md" || ext === ".markdown") return "markdown";
 	if (ext === ".html" || ext === ".htm") return "html";
 	if (ext === ".pdf") return "pdf";
 	if ([".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"].includes(ext)) return "image";
+	if (OFFICE_PREVIEW_EXTENSIONS.has(ext)) return "office";
 	if (TEXT_PREVIEW_EXTENSIONS.has(ext)) return "text";
 	if (!ext && TEXT_NOEXT_NAMES.has(basename(filePath).toLowerCase())) return "text";
 	return "binary";
@@ -2218,8 +2269,9 @@ const server = createServer(async (req, res) => {
 			const stat = statSync(filePath);
 			const kind = workspaceFileKind(filePath);
 			const contentType = contentTypeForWorkspaceFile(filePath);
-			if (kind === "binary" || kind === "pdf" || kind === "image") {
+			if (kind === "binary" || kind === "pdf" || kind === "image" || kind === "office") {
 				const relPath = workspaceRelativePath(root, filePath);
+				const rawUrl = `/api/workspace/raw?workspaceId=${encodeURIComponent(wsId)}&path=${encodeURIComponent(relPath)}`;
 				json(res, 200, {
 					path: relPath,
 					name: basename(filePath),
@@ -2227,7 +2279,11 @@ const server = createServer(async (req, res) => {
 					mimeType: contentType,
 					size: stat.size,
 					updatedAt: stat.mtime.toISOString(),
-					url: `/api/workspace/raw?workspaceId=${encodeURIComponent(wsId)}&path=${encodeURIComponent(relPath)}`,
+					url: rawUrl,
+					// Office docs carry a separate URL that returns extracted text JSON.
+					previewUrl: kind === "office"
+						? `/api/workspace/office-preview?workspaceId=${encodeURIComponent(wsId)}&path=${encodeURIComponent(relPath)}`
+						: undefined,
 				});
 				return;
 			}
@@ -2250,6 +2306,7 @@ const server = createServer(async (req, res) => {
 		if ((method === "GET" || method === "HEAD") && url.startsWith("/api/workspace/raw?")) {
 			const params = new URL(url, "http://localhost").searchParams;
 			const requestedPath = params.get("path") ?? "";
+			const wantsDownload = params.get("download") === "1";
 			const wsId = workspaceIdFromQuery(url);
 			const filePath = safeWorkspacePath(wsId, requestedPath);
 			if (!filePath || !existsSync(filePath) || !statSync(filePath).isFile()) {
@@ -2257,12 +2314,79 @@ const server = createServer(async (req, res) => {
 				return;
 			}
 			const content = readFileSync(filePath);
-			res.writeHead(200, {
+			const headers: Record<string, string | number> = {
 				"Content-Type": contentTypeForWorkspaceFile(filePath),
 				"Content-Length": content.length,
 				"Cache-Control": "no-store",
-			});
+			};
+			if (wantsDownload) {
+				headers["Content-Disposition"] = contentDispositionAttachment(basename(filePath));
+			}
+			res.writeHead(200, headers);
 			res.end(method === "GET" ? content : undefined);
+			return;
+		}
+
+		// Download a directory as a zip archive.
+		if ((method === "GET" || method === "HEAD") && url.startsWith("/api/workspace/download-folder?")) {
+			const params = new URL(url, "http://localhost").searchParams;
+			const requestedPath = params.get("path") ?? "";
+			const wsId = workspaceIdFromQuery(url);
+			const root = workspaceRegistry.resolveWorkspaceDir(wsId);
+			if (!root) { json(res, 404, { error: "Workspace not found" }); return; }
+			// Empty path → zip the whole workspace root.
+			const dirPath = requestedPath ? safeWorkspacePath(wsId, requestedPath) : root;
+			if (!dirPath || !existsSync(dirPath) || !statSync(dirPath).isDirectory()) {
+				json(res, 404, { error: "Workspace folder not found" });
+				return;
+			}
+			const archiveName = `${basename(dirPath) || basename(root) || "workspace"}.zip`;
+			if (method === "HEAD") {
+				res.writeHead(200, {
+					"Content-Type": "application/zip",
+					"Content-Disposition": contentDispositionAttachment(archiveName),
+					"Cache-Control": "no-store",
+				});
+				res.end();
+				return;
+			}
+			try {
+				const zipData = zipDirectory(dirPath);
+				res.writeHead(200, {
+					"Content-Type": "application/zip",
+					"Content-Length": zipData.length,
+					"Content-Disposition": contentDispositionAttachment(archiveName),
+					"Cache-Control": "no-store",
+				});
+				res.end(zipData);
+			} catch (err) {
+				json(res, 500, { error: err instanceof Error ? err.message : "Failed to create zip archive" });
+			}
+			return;
+		}
+
+		// Extract text from office documents (docx/xlsx/pptx) for in-browser preview.
+		if (method === "GET" && url.startsWith("/api/workspace/office-preview?")) {
+			const params = new URL(url, "http://localhost").searchParams;
+			const requestedPath = params.get("path") ?? "";
+			const wsId = workspaceIdFromQuery(url);
+			const filePath = safeWorkspacePath(wsId, requestedPath);
+			if (!filePath || !existsSync(filePath) || !statSync(filePath).isFile()) {
+				json(res, 404, { error: "Workspace file not found" });
+				return;
+			}
+			try {
+				const { parseDocument } = await import("./memory/l2/document-parser.js");
+				const parsed = await parseDocument(filePath);
+				json(res, 200, {
+					name: basename(filePath),
+					pageCount: parsed.pageCount,
+					text: parsed.text,
+					pages: parsed.pages,
+				});
+			} catch (err) {
+				json(res, 422, { error: err instanceof Error ? err.message : "Failed to parse document" });
+			}
 			return;
 		}
 

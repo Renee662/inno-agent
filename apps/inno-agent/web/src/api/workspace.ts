@@ -68,3 +68,32 @@ export async function uploadWorkspaceSkill(fileName: string, dataBase64: string,
 		body: JSON.stringify(withWorkspace({ fileName, dataBase64 }, workspaceId)),
 	});
 }
+
+/** Build the raw URL for a workspace file, optionally forcing a download. */
+export function workspaceFileUrl(path: string, workspaceId?: string, download = false): string {
+	const params = new URLSearchParams({ path });
+	if (workspaceId) params.set("workspaceId", workspaceId);
+	if (download) params.set("download", "1");
+	return `/api/workspace/raw?${params.toString()}`;
+}
+
+/** Build the URL that zips and downloads a workspace folder (empty path → whole workspace). */
+export function workspaceFolderZipUrl(path: string, workspaceId?: string): string {
+	const params = new URLSearchParams();
+	if (path) params.set("path", path);
+	if (workspaceId) params.set("workspaceId", workspaceId);
+	const qs = params.toString();
+	return `/api/workspace/download-folder${qs ? `?${qs}` : ""}`;
+}
+
+/** Trigger a browser download by clicking a transient anchor. */
+export function triggerDownload(url: string): void {
+	const a = document.createElement("a");
+	a.href = url;
+	a.rel = "noopener";
+	// download attr is advisory; the server sets Content-Disposition with the real name.
+	a.download = "";
+	document.body.appendChild(a);
+	a.click();
+	a.remove();
+}

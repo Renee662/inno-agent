@@ -13,7 +13,7 @@ export interface WorkspaceTree extends WorkspaceTreeNode {
 	children: WorkspaceTreeNode[];
 }
 
-export type WorkspaceFileKind = "markdown" | "html" | "pdf" | "image" | "text" | "binary";
+export type WorkspaceFileKind = "markdown" | "html" | "pdf" | "image" | "office" | "text" | "binary";
 
 export interface WorkspaceFileDetail {
 	path: string;
@@ -24,6 +24,8 @@ export interface WorkspaceFileDetail {
 	updatedAt: string;
 	content?: string;
 	url?: string;
+	/** For office docs: URL returning extracted-text JSON. */
+	previewUrl?: string;
 }
 
 /** Node shape expected by react-arborist */

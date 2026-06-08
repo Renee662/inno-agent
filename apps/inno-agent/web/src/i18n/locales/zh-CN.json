@@ -122,7 +122,14 @@
     "noFile": "未选择文件",
     "selectFile": "从左侧选择一个文件",
     "noPreview": "暂无预览",
-    "binaryFile": "二进制文件"
+    "binaryFile": "二进制文件",
+    "emptyTable": "空表格",
+    "tableRows": "{{count}} 行",
+    "officeParsing": "正在提取文档文本…",
+    "officeNote": "已提取文本用于预览 · 排版可能与原文不同",
+    "officeUnavailable": "无法预览",
+    "pageCount": "{{count}} 页",
+    "page": "第"
   },
   "profile": {
     "title": "学习者画像",

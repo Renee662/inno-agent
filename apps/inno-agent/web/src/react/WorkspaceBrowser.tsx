@@ -17,8 +17,9 @@ import { cpp } from "@codemirror/lang-cpp";
 import { rust } from "@codemirror/lang-rust";
 import { go } from "@codemirror/lang-go";
 import type { Extension } from "@codemirror/state";
-import { RefreshCw, FileText, FileType, Globe, File, FolderOpen, Folder, Pencil, Save, X, PanelLeftClose, PanelLeftOpen, Sparkles } from "lucide-react";
+import { RefreshCw, FileText, FileType, Globe, File, FolderOpen, Folder, Pencil, Save, X, PanelLeftClose, PanelLeftOpen, Sparkles, Download } from "lucide-react";
 import { workspaceStore } from "../stores/workspace-store.js";
+import { workspaceFileUrl, workspaceFolderZipUrl, triggerDownload } from "../api/workspace.js";
 import { workspacesStore } from "../stores/workspaces-store.js";
 import { sessionsStore } from "../stores/sessions-store.js";
 import { getSessionWorkspace } from "../api/workspaces.js";
@@ -92,6 +93,170 @@ function cmLangExtension(lang: string): Extension[] {
 		case "go": return [go()];
 		default: return [];
 	}
+}
+
+/* ---------- CSV / TSV parsing ---------- */
+
+/** True for delimited-table files we render as a grid. */
+function isCsvName(name: string): boolean {
+	const lower = name.toLowerCase();
+	return lower.endsWith(".csv") || lower.endsWith(".tsv");
+}
+
+/**
+ * Parse delimited text into rows of cells. Handles quoted fields (RFC 4180):
+ * double-quoted values may contain the delimiter, newlines, and escaped quotes
+ * (`""`). Delimiter is auto-picked from the filename (.tsv → tab, else comma).
+ */
+function parseDelimited(text: string, delimiter: string): string[][] {
+	const rows: string[][] = [];
+	let row: string[] = [];
+	let field = "";
+	let inQuotes = false;
+	for (let i = 0; i < text.length; i++) {
+		const ch = text[i];
+		if (inQuotes) {
+			if (ch === '"') {
+				if (text[i + 1] === '"') { field += '"'; i++; }
+				else inQuotes = false;
+			} else {
+				field += ch;
+			}
+			continue;
+		}
+		if (ch === '"') { inQuotes = true; continue; }
+		if (ch === delimiter) { row.push(field); field = ""; continue; }
+		if (ch === "\n") { row.push(field); rows.push(row); row = []; field = ""; continue; }
+		if (ch === "\r") continue;
+		field += ch;
+	}
+	// Flush trailing field/row (unless the file ended on a clean newline).
+	if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+	return rows;
+}
+
+/** Render CSV/TSV content as a scrollable table; first row is treated as a header. */
+function CsvPreview({ name, content }: { name: string; content: string }) {
+	const { t } = useTranslation();
+	const rows = useMemo(() => {
+		const delimiter = name.toLowerCase().endsWith(".tsv") ? "\t" : ",";
+		return parseDelimited(content, delimiter);
+	}, [name, content]);
+
+	if (!rows.length) {
+		return <div className="flex h-full items-center justify-center text-sm text-slate-500">{t("preview.emptyTable", "Empty table")}</div>;
+	}
+	const [header, ...body] = rows;
+	return (
+		<div className="h-full overflow-auto bg-white p-3">
+			<table className="w-full border-collapse text-xs">
+				<thead className="sticky top-0 z-10">
+					<tr>
+						{header.map((cell, i) => (
+							<th key={i} className="border border-slate-200 bg-slate-50 px-2 py-1 text-left font-semibold text-slate-700">
+								{cell}
+							</th>
+						))}
+					</tr>
+				</thead>
+				<tbody>
+					{body.map((r, ri) => (
+						<tr key={ri} className="odd:bg-white even:bg-slate-50/60">
+							{header.map((_, ci) => (
+								<td key={ci} className="border border-slate-200 px-2 py-1 align-top text-slate-600">
+									{r[ci] ?? ""}
+								</td>
+							))}
+						</tr>
+					))}
+				</tbody>
+			</table>
+			<div className="mt-2 text-[10px] text-slate-400">{t("preview.tableRows", "{{count}} rows", { count: body.length })}</div>
+		</div>
+	);
+}
+
+/* ---------- Office (docx/xlsx/pptx) preview ---------- */
+
+interface OfficePreviewData {
+	name: string;
+	pageCount: number;
+	text: string;
+	pages: Array<{ pageNumber: number; text: string }>;
+}
+
+/** Fetch extracted text for an office document and render it page-by-page. */
+function OfficePreview({ file }: { file: WorkspaceFileDetail }) {
+	const { t } = useTranslation();
+	const [data, setData] = useState<OfficePreviewData | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState("");
+
+	useEffect(() => {
+		if (!file.previewUrl) { setError(t("preview.officeUnavailable", "Preview unavailable")); setLoading(false); return; }
+		let cancelled = false;
+		setLoading(true);
+		setError("");
+		setData(null);
+		fetch(file.previewUrl)
+			.then(async (res) => {
+				if (!res.ok) {
+					const body = await res.json().catch(() => ({}));
+					throw new Error((body as { error?: string }).error || res.statusText);
+				}
+				return res.json() as Promise<OfficePreviewData>;
+			})
+			.then((d) => { if (!cancelled) setData(d); })
+			.catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : "Failed to parse document"); })
+			.finally(() => { if (!cancelled) setLoading(false); });
+		return () => { cancelled = true; };
+	}, [file.previewUrl, file.path, t]);
+
+	const downloadOriginal = useCallback(() => {
+		if (file.url) triggerDownload(`${file.url}${file.url.includes("?") ? "&" : "?"}download=1`);
+	}, [file.url]);
+
+	if (loading) {
+		return <div className="flex h-full items-center justify-center text-sm text-slate-500">{t("preview.officeParsing", "Extracting document text...")}</div>;
+	}
+	if (error) {
+		return (
+			<div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-slate-500">
+				<div className="font-medium text-slate-700">{file.name}</div>
+				<div className="text-xs text-red-500">{error}</div>
+				<button className="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50" onClick={downloadOriginal}>
+					<Download size={12} />
+					{t("files.download", "Download")}
+				</button>
+			</div>
+		);
+	}
+	const pages = data?.pages?.length ? data.pages : (data ? [{ pageNumber: 1, text: data.text }] : []);
+	return (
+		<div className="workspace-scroll h-full overflow-auto bg-slate-50 p-4">
+			<div className="mb-3 flex items-center justify-between gap-2">
+				<div className="text-xs text-slate-500">
+					{t("preview.officeNote", "Text extracted for preview · formatting may differ")} · {t("preview.pageCount", "{{count}} pages", { count: data?.pageCount ?? pages.length })}
+				</div>
+				<button className="flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-100" onClick={downloadOriginal}>
+					<Download size={12} />
+					{t("files.download", "Download")}
+				</button>
+			</div>
+			<div className="space-y-3">
+				{pages.map((p) => (
+					<div key={p.pageNumber} className="rounded-lg border border-slate-200 bg-white p-4">
+						{pages.length > 1 ? (
+							<div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+								{t("preview.page", "Page")} {p.pageNumber}
+							</div>
+						) : null}
+						<pre className="whitespace-pre-wrap break-words font-sans text-xs leading-relaxed text-slate-700">{p.text}</pre>
+					</div>
+				))}
+			</div>
+		</div>
+	);
 }
 
 /* ---------- Preview (read-only) ---------- */
@@ -174,6 +339,9 @@ function Preview({ file, isLoading }: { file: WorkspaceFileDetail; isLoading: bo
 			</div>
 		);
 	}
+	if (file.kind === "office") {
+		return <OfficePreview file={file} />;
+	}
 	if (file.kind === "binary") {
 		return (
 			<div className="flex h-full flex-col items-center justify-center text-sm text-slate-500">
@@ -183,6 +351,10 @@ function Preview({ file, isLoading }: { file: WorkspaceFileDetail; isLoading: bo
 		);
 	}
 	// text / code — syntax-highlighted via CodeMirror (read-only)
+	// CSV/TSV get a table grid instead of raw text.
+	if (isCsvName(file.name)) {
+		return <CsvPreview name={file.name} content={file.content ?? ""} />;
+	}
 	const lang = langFromName(file.name);
 	return (
 		<div className="h-full overflow-hidden">
@@ -401,15 +573,19 @@ interface CtxMenuState {
 	isRoot?: boolean;
 }
 
-function ContextMenu({ state, onClose, treeRef }: { state: CtxMenuState; onClose: () => void; treeRef: React.RefObject<TreeApi<ArboristNode> | null> }) {
+function ContextMenu({ state, onClose, treeRef, workspaceId }: { state: CtxMenuState; onClose: () => void; treeRef: React.RefObject<TreeApi<ArboristNode> | null>; workspaceId?: string }) {
 	const { t } = useTranslation();
 	const items = state.isRoot
 		? [
 			{ label: t("files.newFile", "New File"), action: () => { treeRef.current?.create({ parentId: null, type: "leaf" }); } },
 			{ label: t("files.newFolder", "New Folder"), action: () => { treeRef.current?.create({ parentId: null, type: "internal" }); } },
+			{ label: t("files.downloadFolder", "Download as ZIP"), action: () => { triggerDownload(workspaceFolderZipUrl("", workspaceId)); } },
 		]
 		: [
 			{ label: t("files.rename", "Rename"), action: () => { const n = treeRef.current?.get(state.nodePath); n?.edit(); } },
+			...(state.isDir
+				? [{ label: t("files.downloadFolder", "Download as ZIP"), action: () => { triggerDownload(workspaceFolderZipUrl(state.nodePath, workspaceId)); } }]
+				: [{ label: t("files.download", "Download"), action: () => { triggerDownload(workspaceFileUrl(state.nodePath, workspaceId, true)); } }]),
 			{ label: t("files.delete", "Delete"), action: () => { const n = treeRef.current?.get(state.nodePath); if (n) treeRef.current?.delete(n.id); } },
 			...(state.isDir ? [
 				{ label: t("files.newFileHere", "New File Here"), action: () => { const n = treeRef.current?.get(state.nodePath); n?.open(); treeRef.current?.create({ parentId: state.nodePath, type: "leaf" }); } },
@@ -735,7 +911,7 @@ export function WorkspaceBrowser() {
 			) : null}
 
 			{/* Context Menu */}
-			{ctxMenu && <ContextMenu state={ctxMenu} onClose={() => setCtxMenu(null)} treeRef={treeRef} />}
+			{ctxMenu && <ContextMenu state={ctxMenu} onClose={() => setCtxMenu(null)} treeRef={treeRef} workspaceId={state.activeWorkspaceId ?? undefined} />}
 
 			{/* Delete Confirmation */}
 			{deleteConfirm && <DeleteConfirm paths={deleteConfirm.ids} onConfirm={() => void handleConfirmDelete()} onCancel={() => setDeleteConfirm(null)} />}
