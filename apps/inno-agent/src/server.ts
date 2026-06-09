@@ -3012,6 +3012,18 @@ const server = createServer(async (req, res) => {
 			return;
 		}
 
+		// --- Chat Abort (explicit stop from UI) ---
+		// The SSE req.on("close") handler also aborts, but connection-close is
+		// unreliable through dev proxies and during rapid terminate→switch flows.
+		// This gives the client a deterministic way to stop the backend stream so
+		// the shared prompt queue is released immediately (otherwise new-session /
+		// switch-session block behind a still-running turn).
+		if (method === "POST" && url === "/api/chat/abort") {
+			await abortCurrentPrompt();
+			json(res, 200, { aborted: true });
+			return;
+		}
+
 		// --- Chat Streaming (SSE) ---
 		if (method === "POST" && url === "/api/chat/stream") {
 			const body = (await readBody(req)) as Record<string, unknown>;

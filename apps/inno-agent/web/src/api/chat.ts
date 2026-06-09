@@ -17,3 +17,16 @@ export async function postChat(prompt: string, sessionId?: string | null, images
 export function streamChat(prompt: string, sessionId?: string | null, signal?: AbortSignal, images?: InlineImage[]): AsyncGenerator<ChatStreamEvent> {
 	return streamSSE<ChatStreamEvent>("/api/chat/stream", { prompt, sessionId: sessionId ?? undefined, images: images?.length ? images : undefined }, signal);
 }
+
+/**
+ * Explicitly tell the backend to abort the currently running prompt. Best-effort:
+ * connection-close from aborting the SSE fetch is unreliable through dev proxies,
+ * so the UI calls this to deterministically release the server's prompt queue.
+ */
+export async function abortChat(): Promise<void> {
+	try {
+		await fetch("/api/chat/abort", { method: "POST" });
+	} catch {
+		// best-effort — the SSE close handler is a fallback
+	}
+}

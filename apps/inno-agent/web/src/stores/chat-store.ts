@@ -1,5 +1,5 @@
 import { EventEmitter } from "./event-emitter.js";
-import { streamChat } from "../api/chat.js";
+import { streamChat, abortChat } from "../api/chat.js";
 import type { InlineImage } from "../api/chat.js";
 import type { ChatMessage, ChatStreamEvent, ChatToolRecord, PendingQuestion, QuestionnaireResult } from "../types/chat.js";
 import { notebookStore } from "./notebook-store.js";
@@ -112,7 +112,13 @@ class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 
 	/** Abort the in-flight stream. */
 	cancel(): void {
+		const wasSending = this.isSending;
 		this.abortController?.abort();
+		// Aborting the local fetch may not promptly close the upstream connection
+		// (dev proxy buffering), so explicitly tell the backend to stop the run.
+		// This releases the server's shared prompt queue immediately, preventing
+		// new-session / switch-session from blocking behind a still-running turn.
+		if (wasSending) void abortChat();
 	}
 
 	/** Re-send the last user prompt. No-op while a send is in flight. */

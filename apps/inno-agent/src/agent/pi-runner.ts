@@ -354,6 +354,10 @@ export async function reloadResources(): Promise<void> {
  */
 export async function switchSessionFile(sessionPath: string): Promise<void> {
 	if (!_runtime) throw new Error("Session not initialized. Call initSession() first.");
+	// Defensively abort any in-flight prompt FIRST (outside the queue, like
+	// switchModel does) so this switch can't get stuck behind a still-streaming
+	// turn holding the shared queue.
+	await abortCurrentPrompt();
 	await enqueue(async () => {
 		await switchToSession(sessionPath);
 	});
@@ -377,6 +381,10 @@ export async function applyWorkspaceCwd(sessionPath: string): Promise<void> {
  */
 export async function createNewSession(): Promise<string> {
 	if (!_runtime) throw new Error("Session not initialized. Call initSession() first.");
+	// Defensively abort any in-flight prompt FIRST (outside the queue) so opening
+	// a new conversation can't get stuck behind a still-streaming turn holding the
+	// shared queue.
+	await abortCurrentPrompt();
 	return enqueue(async () => {
 		await _runtime!.newSession();
 		const sessionId = getCurrentSessionId();
