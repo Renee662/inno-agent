@@ -324,6 +324,11 @@
     "use": "Use",
     "providers": "Providers",
     "newProvider": "New provider",
+    "memory": {
+      "title": "Cross-conversation memory (L3)",
+      "onDesc": "On: searches past conversations via SQLite and auto-recalls relevant context.",
+      "offDesc": "Off: replies use only the current workspace contents and the current conversation context."
+    },
     "form": {
       "providerId": "Provider id",
       "baseUrl": "Base URL",

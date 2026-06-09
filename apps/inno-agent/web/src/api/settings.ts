@@ -32,6 +32,13 @@ export async function saveChannelsSettings(payload: ChannelsSettingsPayload): Pr
 	});
 }
 
+export async function saveMemorySettings(l3Enabled: boolean): Promise<InnoSettings> {
+	return apiFetch<InnoSettings>("/api/settings/memory", {
+		method: "PUT",
+		body: JSON.stringify({ l3Enabled }),
+	});
+}
+
 export async function wechatQrLogin(): Promise<{ qrId: string; qrUrl: string }> {
 	return apiFetch<{ qrId: string; qrUrl: string }>("/api/channels/wechat/qr-login", {
 		method: "POST",

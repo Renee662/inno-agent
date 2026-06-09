@@ -23,6 +23,16 @@ export interface InnoSubagentsConfig {
 	enabled: boolean;
 }
 
+export interface InnoMemoryConfig {
+	/**
+	 * When true (default), L3 cross-conversation recall is active: past sessions
+	 * are searched via sqlite and relevant snippets are auto-injected / the
+	 * `l3_recall` tool is exposed. When false, replies use only the current
+	 * workspace contents and the current session context.
+	 */
+	l3Enabled: boolean;
+}
+
 export interface PersonalChannelConfig {
 	enabled: boolean;
 	personalOnly?: boolean;
@@ -59,6 +69,7 @@ export interface InnoConfig {
 		token: string;
 	};
 	subagents?: InnoSubagentsConfig;
+	memory?: InnoMemoryConfig;
 }
 
 interface LegacyInnoConfig extends Partial<InnoConfig> {
@@ -102,6 +113,11 @@ export function normalizeProviderConfig(provider: Partial<InnoProviderConfig>): 
 	};
 }
 
+export function normalizeMemoryConfig(memory: Partial<InnoMemoryConfig> | undefined): InnoMemoryConfig {
+	// L3 recall defaults to ON; only an explicit `false` disables it.
+	return { l3Enabled: memory?.l3Enabled !== false };
+}
+
 export function normalizeConfig(config: LegacyInnoConfig): InnoConfig {
 	const providers: Record<string, InnoProviderConfig> = {};
 	for (const [providerId, providerConfig] of Object.entries(config.providers ?? {})) {
@@ -135,6 +151,7 @@ export function normalizeConfig(config: LegacyInnoConfig): InnoConfig {
 		channels: config.channels,
 		bridge: config.bridge,
 		subagents: config.subagents,
+		memory: normalizeMemoryConfig(config.memory),
 	} as InnoConfig;
 }
 

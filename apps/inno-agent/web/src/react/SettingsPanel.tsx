@@ -632,6 +632,52 @@ function ChannelsSettings({ settings }: { settings: InnoSettings }) {
 	);
 }
 
+/* ---------- Memory Settings (L3 cross-conversation recall toggle) ---------- */
+
+function MemorySettings({ settings }: { settings: InnoSettings }) {
+	const { t } = useTranslation();
+	const [enabled, setEnabled] = useState(settings.memory?.l3Enabled !== false);
+	const [saving, setSaving] = useState(false);
+
+	useEffect(() => {
+		setEnabled(settings.memory?.l3Enabled !== false);
+	}, [settings.memory?.l3Enabled]);
+
+	async function handleToggle(next: boolean) {
+		setEnabled(next);
+		setSaving(true);
+		try {
+			await settingsStore.saveMemory(next);
+		} catch {
+			setEnabled(!next);
+		} finally {
+			setSaving(false);
+		}
+	}
+
+	return (
+		<div className="rounded-lg border border-slate-200 bg-white p-4">
+			<div className="flex items-start justify-between gap-3">
+				<div className="min-w-0">
+					<h4 className="text-sm font-medium text-slate-950">{t("settings.memory.title")}</h4>
+					<p className="mt-1 text-xs text-slate-500">
+						{enabled ? t("settings.memory.onDesc") : t("settings.memory.offDesc")}
+					</p>
+				</div>
+				<button
+					role="switch"
+					aria-checked={enabled}
+					disabled={saving}
+					onClick={() => void handleToggle(!enabled)}
+					className={`relative mt-0.5 inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${enabled ? "bg-blue-600" : "bg-slate-300"}`}
+				>
+					<span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${enabled ? "translate-x-[18px]" : "translate-x-1"}`} />
+				</button>
+			</div>
+		</div>
+	);
+}
+
 /* ---------- Main SettingsPanel ---------- */
 
 export function SettingsPanel() {
@@ -765,6 +811,9 @@ export function SettingsPanel() {
 
 				{/* New Provider (collapsed by default) */}
 				<NewProviderForm />
+
+				{/* Memory Settings (L3 cross-conversation recall) */}
+				{state.settings && <MemorySettings settings={state.settings} />}
 
 				{/* Channels Settings */}
 				{state.settings && <ChannelsSettings settings={state.settings} />}

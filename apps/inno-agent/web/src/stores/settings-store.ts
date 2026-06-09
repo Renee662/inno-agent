@@ -1,5 +1,5 @@
 import { EventEmitter } from "./event-emitter.js";
-import { getSettings, switchBackendModel, upsertProvider, deleteProviderApi, saveChannelsSettings } from "../api/settings.js";
+import { getSettings, switchBackendModel, upsertProvider, deleteProviderApi, saveChannelsSettings, saveMemorySettings } from "../api/settings.js";
 import type { InnoSettings, UpsertProviderRequest, ChannelsSettingsPayload } from "../types/settings.js";
 
 interface SettingsStoreEvents {
@@ -12,6 +12,7 @@ class SettingsStoreImpl extends EventEmitter<SettingsStoreEvents> {
 	isSavingModel = false;
 	isSavingProvider = false;
 	isSavingChannels = false;
+	isSavingMemory = false;
 	error: string | null = null;
 
 	async load(): Promise<void> {
@@ -98,6 +99,21 @@ class SettingsStoreImpl extends EventEmitter<SettingsStoreEvents> {
 			this.emit("change", undefined);
 		} finally {
 			this.isSavingChannels = false;
+			this.emit("change", undefined);
+		}
+	}
+
+	async saveMemory(l3Enabled: boolean): Promise<void> {
+		this.isSavingMemory = true;
+		this.error = null;
+		this.emit("change", undefined);
+		try {
+			this.settings = await saveMemorySettings(l3Enabled);
+		} catch (err) {
+			this.error = err instanceof Error ? err.message : "Failed to save memory settings";
+			this.emit("change", undefined);
+		} finally {
+			this.isSavingMemory = false;
 			this.emit("change", undefined);
 		}
 	}

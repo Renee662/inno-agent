@@ -2966,6 +2966,20 @@ const server = createServer(async (req, res) => {
 			return;
 		}
 
+		// --- Memory Settings (L3 cross-conversation recall toggle) ---
+		if (method === "PUT" && url === "/api/settings/memory") {
+			const body = (await readBody(req)) as Record<string, unknown>;
+			if (typeof body.l3Enabled !== "boolean") {
+				json(res, 400, { error: "Missing l3Enabled (boolean)" });
+				return;
+			}
+			config.memory = { l3Enabled: body.l3Enabled };
+			config = saveConfig(paths.configPath, config);
+			syncConfig(config);
+			json(res, 200, buildSafeSettings());
+			return;
+		}
+
 		// --- Chat API ---
 		if (method === "POST" && url === "/api/chat") {
 			const body = (await readBody(req)) as Record<string, unknown>;

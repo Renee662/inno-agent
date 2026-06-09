@@ -187,9 +187,13 @@ export function createInnoExtension(
 			pi.registerTool(tool);
 		}
 
-		// 4a. Register L3 cross-conversation memory (sqlite-backed recall)
+		// 4a. Register L3 cross-conversation memory (sqlite-backed recall).
+		// Recall (auto-inject + the l3_recall tool) is gated at runtime on
+		// config.memory.l3Enabled (default on); indexing always runs so the
+		// switch can be flipped back on without a backfill gap.
 		const l3Memory = new L3Memory(paths.l3DataDir, paths.sessionDir);
-		const l3Tools = createL3Tools(l3Memory, deps?.getCurrentSessionId);
+		const isL3Enabled = () => configHolder.current.memory?.l3Enabled !== false;
+		const l3Tools = createL3Tools(l3Memory, deps?.getCurrentSessionId, isL3Enabled);
 		for (const tool of l3Tools) {
 			pi.registerTool(tool);
 		}
@@ -228,17 +232,20 @@ export function createInnoExtension(
 
 				// Inject threshold-gated cross-conversation recall (L3). Only
 				// injects when past snippets clear the relevance threshold, so
-				// unrelated turns stay clean.
-				try {
-					let currentSessionId = "";
-					const sessionFile = ctx.sessionManager.getSessionFile?.();
-					if (sessionFile) currentSessionId = sessionFile.split(/[\\/]/).pop() ?? "";
-					if (!currentSessionId && deps?.getCurrentSessionId) currentSessionId = deps.getCurrentSessionId();
-					const recalled = await l3Memory.recall(event.prompt, currentSessionId || undefined);
-					const recallSection = formatRecallForPrompt(recalled);
-					if (recallSection) sections.push(recallSection);
-				} catch {
-					// best-effort — recall failures must not block the turn
+				// unrelated turns stay clean. Skipped entirely when the user has
+				// turned L3 recall off in settings.
+				if (isL3Enabled()) {
+					try {
+						let currentSessionId = "";
+						const sessionFile = ctx.sessionManager.getSessionFile?.();
+						if (sessionFile) currentSessionId = sessionFile.split(/[\\/]/).pop() ?? "";
+						if (!currentSessionId && deps?.getCurrentSessionId) currentSessionId = deps.getCurrentSessionId();
+						const recalled = await l3Memory.recall(event.prompt, currentSessionId || undefined);
+						const recallSection = formatRecallForPrompt(recalled);
+						if (recallSection) sections.push(recallSection);
+					} catch {
+						// best-effort — recall failures must not block the turn
+					}
 				}
 
 				// Inject the latest run record for this session, so the agent can

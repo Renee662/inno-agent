@@ -324,6 +324,11 @@
     "use": "使用",
     "providers": "服务提供方",
     "newProvider": "新增提供方",
+    "memory": {
+      "title": "跨对话记忆 (L3)",
+      "onDesc": "已开启：可通过 SQLite 检索历史对话内容，自动召回相关上下文。",
+      "offDesc": "已关闭：仅基于当前工作区内容与当前对话上下文进行回复。"
+    },
     "form": {
       "providerId": "提供方 ID",
       "baseUrl": "Base URL",

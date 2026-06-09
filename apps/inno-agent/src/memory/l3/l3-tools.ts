@@ -81,7 +81,11 @@ export class L3Memory {
  * Register the `l3_recall` tool. The agent calls this to deliberately search
  * its memory of past conversations (separate from the automatic injection).
  */
-export function createL3Tools(memory: L3Memory, getCurrentSessionId?: () => string): ToolDefinition[] {
+export function createL3Tools(
+	memory: L3Memory,
+	getCurrentSessionId?: () => string,
+	isEnabled?: () => boolean,
+): ToolDefinition[] {
 	const recallTool = defineTool({
 		name: "l3_recall",
 		label: "回忆历史对话",
@@ -98,6 +102,12 @@ export function createL3Tools(memory: L3Memory, getCurrentSessionId?: () => stri
 			),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+			if (isEnabled && !isEnabled()) {
+				return {
+					content: [{ type: "text" as const, text: "跨对话历史检索（L3）已在设置中关闭，当前仅使用本工作区与当前对话上下文。" }],
+					details: { results: 0, disabled: true },
+				};
+			}
 			const query = String((params as { query?: string }).query ?? "").trim();
 			const limit = Number((params as { limit?: number }).limit ?? 4);
 			if (!query) {
