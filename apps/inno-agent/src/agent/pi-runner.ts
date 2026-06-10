@@ -340,6 +340,74 @@ export function appendAssistantNotification(text: string): void {
 }
 
 /**
+ * Persist an interrupted first turn so it isn't lost from the sidebar.
+ *
+ * The PI SDK persists lazily: `SessionManager` writes NOTHING to disk (not even
+ * the session header + user message) until an assistant message exists in the
+ * entries. So if the user sends the very first prompt in a brand-new session
+ * and then aborts before any assistant content is committed, the file stays
+ * header-only / 0-byte and the conversation effectively vanishes (no preview,
+ * no recoverable history — and on a fresh workspace it can't be reopened).
+ *
+ * To make an interrupted first turn recoverable, append a minimal placeholder
+ * assistant message when the latest in-memory entry is an unanswered user turn.
+ * That forces the SDK to flush the header + user message + this placeholder to
+ * disk, so the session shows up in the sidebar with its real first prompt as
+ * the preview and can be reopened.
+ *
+ * Guarded by `expectedSessionId` so a late abort can't write into a session the
+ * runtime has since switched away from. Best-effort and never throws.
+ */
+export function persistPendingUserTurn(expectedSessionId?: string): boolean {
+	if (!_runtime) return false;
+	try {
+		const session = getSession();
+		const sessionFile = session.sessionFile;
+		const currentId = sessionFile ? basename(sessionFile) : "";
+		if (!currentId) return false;
+		if (expectedSessionId && expectedSessionId !== currentId) return false;
+
+		const manager = session.sessionManager;
+		const entries = manager.getEntries();
+		// Only act when the turn was never answered: the last message entry is a
+		// user message. If an assistant message already exists the SDK has (or
+		// will) flush normally, so there is nothing to rescue.
+		let lastMessageRole: string | undefined;
+		let hasAssistant = false;
+		for (const entry of entries) {
+			if (entry.type !== "message") continue;
+			const role = (entry as { message?: { role?: string } }).message?.role;
+			if (role === "assistant") hasAssistant = true;
+			lastMessageRole = role;
+		}
+		if (hasAssistant || lastMessageRole !== "user") return false;
+
+		const placeholder: AssistantMessage = {
+			role: "assistant",
+			content: [{ type: "text", text: "[已中断,未完成回复]" }],
+			api: "inno-background",
+			provider: "inno",
+			model: "interrupted",
+			usage: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+				totalTokens: 0,
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+			},
+			stopReason: "aborted",
+			timestamp: Date.now(),
+		};
+		manager.appendMessage(placeholder);
+		return true;
+	} catch {
+		// best-effort — never let a persistence hiccup break the abort path
+		return false;
+	}
+}
+
+/**
  * Reload skills/extensions/resources for the active server session.
  */
 export async function reloadResources(): Promise<void> {
