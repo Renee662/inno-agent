@@ -201,6 +201,11 @@ export async function initSession(
 	_configHolder = configHolder;
 	_workspaceDir = paths.workspaceDir;
 	_currentCwd = cwd;
+
+	const providerCount = Object.keys(config.providers).length;
+	const modelCount = Object.values(config.providers).reduce((sum, p) => sum + p.models.length, 0);
+	logger.info({ providerCount, modelCount, defaultProvider: config.defaultProvider, defaultModel: config.defaultModel, sandbox: Boolean(options?.sandbox) }, "Agent session initialized");
+
 	return runtime.session;
 }
 
@@ -228,6 +233,8 @@ export async function refreshConfiguredProviders(config: InnoConfig): Promise<vo
 	if (!_runtime) throw new Error("Session not initialized. Call initSession() first.");
 	_config = config;
 	if (_configHolder) _configHolder.current = config;
+	const providerIds: string[] = [];
+	let modelCount = 0;
 	for (const [providerId, providerConfig] of Object.entries(config.providers)) {
 		_runtime.session.modelRegistry.registerProvider(providerId, {
 			baseUrl: providerConfig.baseUrl,
@@ -235,8 +242,11 @@ export async function refreshConfiguredProviders(config: InnoConfig): Promise<vo
 			api: providerConfig.api ?? "openai-completions",
 			models: providerConfig.models.map(modelConfigToProviderModel),
 		});
+		providerIds.push(providerId);
+		modelCount += providerConfig.models.length;
 	}
 	_runtime.session.modelRegistry.refresh();
+	logger.info({ providerIds, modelCount }, "Providers refreshed");
 }
 
 export function syncConfig(config: InnoConfig): void {
@@ -292,9 +302,11 @@ export async function switchModel(provider: string, modelId: string): Promise<vo
 	_runtime.session.modelRegistry.refresh();
 	const model = _runtime.session.modelRegistry.find(provider, modelId);
 	if (!model) {
+		logger.error({ provider, modelId }, "Model not found in registry");
 		throw new Error(`Model ${provider}/${modelId} not found`);
 	}
 	await _runtime.session.setModel(model);
+	logger.info({ provider, modelId }, "Model switched");
 }
 
 /**
@@ -501,12 +513,22 @@ export async function runPrompt(prompt: string, images?: ImageContent[]): Promis
 	const session = getSession();
 
 	let output = "";
+	let streamError: string | undefined;
 	const unsubscribe = session.subscribe((event) => {
-		if (
-			event.type === "message_update" &&
-			event.assistantMessageEvent.type === "text_delta"
-		) {
-			output += event.assistantMessageEvent.delta;
+		if (event.type === "message_update") {
+			const ev = event.assistantMessageEvent;
+			if (ev.type === "text_delta") {
+				output += ev.delta;
+			} else if (ev.type === "error") {
+				streamError = ev.error.errorMessage || `LLM API error (stopReason: ${ev.error.stopReason})`;
+				logger.error({ errorMessage: streamError, stopReason: ev.error.stopReason }, "LLM API stream error in runPrompt");
+			}
+		} else if (event.type === "auto_retry_start") {
+			logger.warn({ attempt: event.attempt, maxAttempts: event.maxAttempts, delayMs: event.delayMs }, "LLM API call failed, auto-retrying...");
+		} else if (event.type === "auto_retry_end") {
+			if (!event.success) {
+				logger.error({ finalError: event.finalError }, "LLM API auto-retry failed");
+			}
 		}
 	});
 
@@ -514,6 +536,14 @@ export async function runPrompt(prompt: string, images?: ImageContent[]): Promis
 		await session.prompt(prompt, images?.length ? { images } : undefined);
 	} finally {
 		unsubscribe();
+	}
+
+	if (streamError) {
+		throw new Error(streamError);
+	}
+
+	if (!output.trim()) {
+		logger.warn("runPrompt returned empty output — the model may have produced no text or an API error may have been swallowed");
 	}
 
 	return output.trim();
@@ -586,14 +616,18 @@ export async function completePromptOnce(prompt: string, maxTokens = 64, timeout
 			},
 		);
 
-		if (response.stopReason === "error") return "";
+		if (response.stopReason === "error") {
+			logger.warn({ errorMessage: response.errorMessage, stopReason: response.stopReason }, "completePromptOnce received error stopReason");
+			return "";
+		}
 		return response.content
 			.filter((item): item is { type: "text"; text: string } => item.type === "text")
 			.map((item) => item.text)
 			.join("\n")
 			.trim();
-	} catch {
+	} catch (err) {
 		// best-effort metadata generation — timeout/abort/network errors are non-fatal
+		logger.warn({ err }, "completePromptOnce failed (non-fatal)");
 		return "";
 	} finally {
 		clearTimeout(timer);
@@ -617,13 +651,23 @@ export function runPromptStreaming(
 	return enqueue(async () => {
 		const session = getSession();
 		let output = "";
+		let streamError: string | undefined;
 		const unsubscribe = session.subscribe((event) => {
 			onEvent(event);
-			if (
-				event.type === "message_update" &&
-				event.assistantMessageEvent.type === "text_delta"
-			) {
-				output += event.assistantMessageEvent.delta;
+			if (event.type === "message_update") {
+				const ev = event.assistantMessageEvent;
+				if (ev.type === "text_delta") {
+					output += ev.delta;
+				} else if (ev.type === "error") {
+					streamError = ev.error.errorMessage || `LLM API error (stopReason: ${ev.error.stopReason})`;
+					logger.error({ errorMessage: streamError, stopReason: ev.error.stopReason }, "LLM API stream error in runPromptStreaming");
+				}
+			} else if (event.type === "auto_retry_start") {
+				logger.warn({ attempt: event.attempt, maxAttempts: event.maxAttempts, delayMs: event.delayMs }, "LLM API call failed, auto-retrying...");
+			} else if (event.type === "auto_retry_end") {
+				if (!event.success) {
+					logger.error({ finalError: event.finalError }, "LLM API auto-retry failed");
+				}
 			}
 		});
 		try {
@@ -631,6 +675,15 @@ export function runPromptStreaming(
 		} finally {
 			unsubscribe();
 		}
+
+		if (streamError) {
+			throw new Error(streamError);
+		}
+
+		if (!output.trim()) {
+			logger.warn("runPromptStreaming returned empty output — the model may have produced no text or an API error may have been swallowed");
+		}
+
 		return output.trim();
 	});
 }
@@ -648,13 +701,23 @@ export function runPromptStreamingInSession(
 		await switchToSession(sessionPath);
 		const session = getSession();
 		let output = "";
+		let streamError: string | undefined;
 		const unsubscribe = session.subscribe((event) => {
 			onEvent(event);
-			if (
-				event.type === "message_update" &&
-				event.assistantMessageEvent.type === "text_delta"
-			) {
-				output += event.assistantMessageEvent.delta;
+			if (event.type === "message_update") {
+				const ev = event.assistantMessageEvent;
+				if (ev.type === "text_delta") {
+					output += ev.delta;
+				} else if (ev.type === "error") {
+					streamError = ev.error.errorMessage || `LLM API error (stopReason: ${ev.error.stopReason})`;
+					logger.error({ errorMessage: streamError, stopReason: ev.error.stopReason, sessionPath }, "LLM API stream error in runPromptStreamingInSession");
+				}
+			} else if (event.type === "auto_retry_start") {
+				logger.warn({ attempt: event.attempt, maxAttempts: event.maxAttempts, delayMs: event.delayMs }, "LLM API call failed, auto-retrying...");
+			} else if (event.type === "auto_retry_end") {
+				if (!event.success) {
+					logger.error({ finalError: event.finalError }, "LLM API auto-retry failed");
+				}
 			}
 		});
 		try {
@@ -662,6 +725,15 @@ export function runPromptStreamingInSession(
 		} finally {
 			unsubscribe();
 		}
+
+		if (streamError) {
+			throw new Error(streamError);
+		}
+
+		if (!output.trim()) {
+			logger.warn({ sessionPath }, "runPromptStreamingInSession returned empty output — the model may have produced no text or an API error may have been swallowed");
+		}
+
 		return output.trim();
 	});
 }

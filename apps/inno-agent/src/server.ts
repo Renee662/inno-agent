@@ -3389,15 +3389,21 @@ const server = createServer(async (req, res) => {
 			// Use atomic switch+prompt when a specific session is requested.
 			const requestedSessionId = typeof body.sessionId === "string" ? body.sessionId : null;
 			let output: string;
-			if (requestedSessionId) {
-				const sessionPath = sessionFileFromId(join(dataDir, "sessions"), requestedSessionId);
-				if (sessionPath && existsSync(sessionPath)) {
-					output = await runPromptInSession(sessionPath, prompt, images.length ? images : undefined);
+			try {
+				if (requestedSessionId) {
+					const sessionPath = sessionFileFromId(join(dataDir, "sessions"), requestedSessionId);
+					if (sessionPath && existsSync(sessionPath)) {
+						output = await runPromptInSession(sessionPath, prompt, images.length ? images : undefined);
+					} else {
+						output = await runPromptSerialized(prompt, images.length ? images : undefined);
+					}
 				} else {
 					output = await runPromptSerialized(prompt, images.length ? images : undefined);
 				}
-			} else {
-				output = await runPromptSerialized(prompt, images.length ? images : undefined);
+			} catch (err) {
+				logger.error({ err, sessionId: requestedSessionId }, "Non-streaming chat LLM call failed");
+				json(res, 500, { error: err instanceof Error ? err.message : "LLM API call failed" });
+				return;
 			}
 			recordCurrentSessionChannel("web", requestedSessionId || undefined, { setOriginIfEmpty: true });
 			maybeAutoGenerateTopic(requestedSessionId || getCurrentSessionId());
@@ -3494,6 +3500,10 @@ const server = createServer(async (req, res) => {
 							sseWrite({ type: "text_delta", delta: ev.delta });
 						} else if (ev.type === "thinking_delta") {
 							sseWrite({ type: "thinking_delta", delta: ev.delta });
+						} else if (ev.type === "error") {
+							const errorMsg = ev.error.errorMessage || `LLM API error (stopReason: ${ev.error.stopReason})`;
+							logger.error({ errorMessage: errorMsg, stopReason: ev.error.stopReason }, "LLM API stream error event");
+							sseWrite({ type: "error", message: errorMsg });
 						}
 						break;
 					}
@@ -3525,6 +3535,14 @@ const server = createServer(async (req, res) => {
 							result: event.result,
 							isError: event.isError,
 						});
+						break;
+					case "auto_retry_start":
+						logger.warn({ attempt: event.attempt, maxAttempts: event.maxAttempts, delayMs: event.delayMs }, "LLM API call failed, auto-retrying...");
+						break;
+					case "auto_retry_end":
+						if (!event.success) {
+							logger.error({ finalError: event.finalError }, "LLM API auto-retry failed");
+						}
 						break;
 				}
 			};

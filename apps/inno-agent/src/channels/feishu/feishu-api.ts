@@ -1,6 +1,7 @@
 import * as Lark from "@larksuiteoapi/node-sdk";
 import { readFileSync } from "node:fs";
 import { basename, extname } from "node:path";
+import { logger } from "../../logger.js";
 
 export interface FeishuConfig {
 	appId: string;
@@ -75,7 +76,7 @@ export class FeishuAPI {
 				},
 			});
 			if (resp.code !== 0) {
-				console.error(`[feishu] reply error (part ${i + 1}/${posts.length}): ${resp.msg} (code: ${resp.code})`);
+				logger.error({ code: resp.code, msg: resp.msg, part: i + 1, total: posts.length }, "Feishu reply error");
 				throw new Error(`Feishu reply failed: ${resp.msg} (code: ${resp.code})`);
 			}
 		}
@@ -102,7 +103,7 @@ export class FeishuAPI {
 				},
 			});
 			if (resp.code !== 0) {
-				console.error(`[feishu] send error (part ${i + 1}/${posts.length}): ${resp.msg} (code: ${resp.code})`);
+				logger.error({ code: resp.code, msg: resp.msg, part: i + 1, total: posts.length }, "Feishu push send error");
 				throw new Error(`Feishu send failed: ${resp.msg} (code: ${resp.code})`);
 			}
 		}

@@ -132,6 +132,7 @@ export async function executeJob(
 		return { jobId: job.id, runId, success: true, output, pushedToChannel };
 	} catch (err) {
 		const error = err instanceof Error ? err.message : String(err);
+		logger.error({ err, jobId: job.id, jobName: job.name, taskType: job.taskType, trigger }, "Job execution failed");
 		const finishedAt = new Date();
 		const oneShot = isOneShotCron(job.cron);
 		jobStore.appendRun({

@@ -9,6 +9,9 @@ This is an npm workspaces monorepo (Node.js >=20.6.0, ES modules) for **Inno Age
 - `apps/inno-agent/` — backend (CLI + HTTP server), TypeScript, compiles to `dist/`.
 - `apps/inno-agent/web/` — frontend (React 19 + Lit + Tailwind 4 + Vite), workspace `inno-agent-web`.
 - `electron/` — Electron main process (`main.js` + `loading.html`) for desktop builds.
+- `build/` — desktop app icons (`icon.icns`, `icon.png`, `icon.svg`).
+- `scripts/` — Electron build hooks (`after-pack.cjs`, `build-mac.sh`).
+- `docs/` — screenshots and use-case guides.
 - `runtime/` — local runtime state (config, data, skills); gitignored. Mapped to `INNO_*` env vars.
 - `workspace/` — default agent working directory; gitignored.
 
@@ -16,9 +19,22 @@ PI SDK packages (`@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, `@e
 
 Key dependencies: `ws` (WebSocket), `node-pty` (PTY terminal), `cron-parser` (scheduler), `@larksuiteoapi/node-sdk` (Feishu), `typebox` (validation), `undici` (HTTP client), `pi-subagents` (optional subagent support), `pi-sandbox` (optional OS-level sandboxing).
 
-`vitest` is a dev dependency but no test scripts or test files exist — the TypeScript build (`npm run build`) serves as the sanity check.
+`vitest` is a dev dependency but no test scripts or test files exist — the TypeScript build (`npm run build`) serves as the sanity check. No ESLint or Prettier configuration exists.
 
-Backend TypeScript targets **ES2022** with **Node16** module resolution (see `apps/inno-agent/tsconfig.json`).
+### TypeScript configs
+
+Three tsconfig files form the compilation setup:
+
+- **`tsconfig.base.json`** (repo root) — base config: `ES2022` target, `Node16` module/resolution, strict mode, `sourceMap`, `declaration` + `declarationMap`, `experimentalDecorators`, `emitDecoratorMetadata`, `resolveJsonModule`.
+- **`apps/inno-agent/tsconfig.json`** — backend: extends base patterns, `outDir: ./dist`, `rootDir: ./src`, `types: ["node"]`.
+- **`apps/inno-agent/web/tsconfig.json`** — frontend: `ESNext` module, `bundler` resolution, `lib` includes DOM/DOM.Iterable, `jsx: "react-jsx"`, `noEmit: true`, `isolatedModules: true`.
+
+### Reference docs
+
+- **[README.md](./README.md)** — full project overview, design rationale, features, deployment, contributing.
+- **[QUICKSTART.md](./QUICKSTART.md)** — 5-minute setup guide (Chinese) with provider config examples.
+- **[ELECTRON_BUILD.md](./ELECTRON_BUILD.md)** — Electron packaging notes (Chinese).
+- **[apps/inno-agent/README.md](./apps/inno-agent/README.md)** — backend API route table and project structure (Chinese).
 
 ## Common Commands
 
@@ -34,14 +50,31 @@ npm run server -- --home ./runtime --workspace ./workspace --port 3000
 # Start CLI (terminal agent, no HTTP)
 npm run start -- --home ./runtime --workspace ./workspace
 
+# Sandbox mode (pi-sandbox enabled, isolates agent tool execution)
+npm run sandbox -- --home ./runtime --workspace ./workspace
+npm run server:sandbox -- --home ./runtime --workspace ./workspace --port 3000
+
 # Dev: run server and Vite dev separately
 npm run dev:server      # backend on :3000
 npm run web:dev         # Vite on :5173, proxies /api -> :3000
 
-# Sandbox mode (pi-sandbox enabled, isolates agent tool execution)
-npm run sandbox -- --home ./runtime --workspace ./workspace
-npm run server:sandbox -- --home ./runtime --workspace ./workspace --port 3000
+# Watch mode (TypeScript recompile on change)
+npm run dev             # `tsc --watch` in apps/inno-agent
+
+# restart-dev.sh orchestration
+npm run restart         # full build + dev restart
+npm run restart:fast    # skip build, restart only
 ```
+
+### First-run setup
+
+```bash
+mkdir -p runtime/config runtime/data runtime/skills workspace
+cp config.example.json runtime/config/config.json
+# Edit runtime/config/config.json — set providers[*].apiKey
+```
+
+An `.env.example` file is provided at the repo root with default `INNO_*` env var values for local development.
 
 ### Dev restart rules
 
@@ -52,7 +85,20 @@ npm run server:sandbox -- --home ./runtime --workspace ./workspace --port 3000
 
 ### restart-dev.sh
 
-The `restart-dev.sh` script at the repo root orchestrates the full dev lifecycle: `build`, `start`, `stop`, `status`, `logs`, `smoke`. Supports `--mode dev|prod`, `--skip-build`, `--sandbox`/`--no-sandbox`. Run `bash restart-dev.sh --help` for details. Equivalent npm shortcut: `npm run restart:fast` (skips build).
+The `restart-dev.sh` script at the repo root orchestrates the full dev lifecycle:
+
+```bash
+bash restart-dev.sh              # build + dev mode start both frontend and backend
+bash restart-dev.sh --skip-build # skip compilation, restart processes only
+bash restart-dev.sh status       # show process health and port status
+bash restart-dev.sh logs server  # tail backend logs
+bash restart-dev.sh logs web     # tail frontend logs
+bash restart-dev.sh smoke        # run health/session/WS smoke tests
+bash restart-dev.sh stop         # stop all managed processes
+bash restart-dev.sh --help       # list all options
+```
+
+Supports `--mode dev|prod`, `--skip-build`, `--sandbox`/`--no-sandbox`, `--port <N>`. Equivalent npm shortcuts: `npm run restart` (full), `npm run restart:fast` (skip build).
 
 ### Electron desktop builds
 
@@ -64,11 +110,25 @@ npm run electron:build:win    # Package Windows NSIS + MSI (x64)
 
 `electron/main.js` spawns the Node server as a child process (`ELECTRON_RUN_AS_NODE=1`), shows a loading window while polling `/health`, then opens the main window. First launch creates a default config at `~/.inno-agent/config/config.json`.
 
+### Electron build scripts
+
+- **`scripts/after-pack.cjs`** — electron-builder hook that fixes `node-pty`'s `spawn-helper` executable permissions after packaging. Without this, the in-app terminal fails on macOS/Linux. Declared in `package.json`'s `build.afterPack`.
+- **`scripts/build-mac.sh`** — local macOS packaging script (alternative to CI). Supports `--bump patch|minor|major` for version increment and `--open` to open the output DMG.
+
 ### CI/CD
 
 GitHub Actions workflows (`.github/workflows/`):
 - `release-mac.yml` — macOS Electron DMG builds on ARM64, triggered by `v*.*.*` tags or workflow_dispatch.
 - `release-win.yml` — Windows NSIS + MSI builds on x64, same trigger.
+
+## Design Philosophy
+
+Inno Agent is a **personal learning agent** — not a general coding agent. Key stances that shape the codebase:
+
+- **Layered memory, not a flat chat summary.** Learner state (L1), archived knowledge (L2), and recent dialogue (L3) have different lifecycles — each lives in its own layer with explicit boundaries enforced in the system prompt and storage layout.
+- **Durable facts go to tools, not replies.** Anything that affects future teaching is written to L1/L2 via tools, so personalization decisions are evidence-driven and traceable.
+- **An open, correctable learner model.** The L1 profile is inspectable and editable by the learner; the system prompt forbids unevidenced labels.
+- **The PI SDK kernel is never modified.** All learning behavior is added through registered tools and a single extension hook (`createInnoExtension`), keeping the agent runtime upstream-compatible.
 
 ## Runtime Path Resolution
 
@@ -204,6 +264,30 @@ Hybrid React + Lit. Mounts in `web/src/main.tsx` → `react/App.tsx`. State live
 Key UI dependencies: `cytoscape` (wiki graph), `@xterm/xterm` (in-browser terminal), `@uiw/react-codemirror` (code editor), `@uiw/react-md-editor` (markdown editor), `motion` (animations).
 
 **i18n**: The UI supports Chinese (`zh-CN`, default) and English (`en`), managed by `i18next` + `react-i18next` in `web/src/i18n/`. Locale is persisted to `localStorage` under `inno.locale`.
+
+### Vite config (`web/vite.config.ts`)
+
+The Vite config has three custom plugins and code-splitting:
+
+- **`stubLmStudioPlugin`** — stubs out `@lmstudio/sdk` (a pi-web-ui dependency not used by inno-agent) to avoid bundling it.
+- **`link-katex-fonts`** — creates a symlink `node_modules/@earendil-works/pi-web-ui/dist/fonts` → `node_modules/katex/dist/fonts` so Vite resolves KaTeX font URLs from pi-web-ui's built CSS.
+- **`inno-dev-upload-api`** — Vite dev server middleware on `POST /api/l2/raw/upload` for L2 raw file uploads during development (proxies to the backend in production).
+- **`manualChunks`** — code-splits `codemirror`, `markdown-editor`, `cytoscape`, and `katex` into separate bundles.
+
+Vite dev server runs on port 5173 and proxies `/api` and `/health` to `http://localhost:3000`.
+
+### Logger (`src/logger.ts`)
+
+Pino-based logger with daily rotation to `<INNO_DATA_DIR>/log/server-YYYY-MM-DD.log`. Uses `pino-caller` to annotate each log entry with the TypeScript source location. The log directory and file are created lazily on the first write call (not at process startup). Log level is controlled via `LOG_LEVEL` env var (defaults to `"info"`). The `DailyRotateStream` custom `Writable` checks the date on each write and rotates to a new file when the day changes.
+
+## Docker
+
+A multi-stage `Dockerfile` and `docker-compose.yml` are provided as deployment starting points:
+
+- **Build stage** (`node:22-bookworm-slim`): installs build tools for `node-pty` native deps (python3, make, g++), runs `npm ci` + `npm run build`, then `npm prune --production`.
+- **Runtime stage**: copies only `dist/` artifacts and production `node_modules`. Sets `NODE_ENV=production` and all `INNO_*` env vars for a production layout (`/etc/inno-agent` for config, `/var/lib/inno-agent` for data/skills, `/srv/inno-workspace` for workspace). Exposes port 3000.
+- **`docker-compose.yml`**: single service mapping port 3000, with volume mounts for `runtime/config/`, `runtime/data/`, `runtime/skills/`, and `workspace/`.
+- **`.dockerignore`**: excludes `node_modules/`, `dist/`, `runtime/`, `workspace/`, `.env`, `.git`.
 
 ## Configuration
 
