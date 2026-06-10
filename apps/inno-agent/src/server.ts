@@ -21,7 +21,7 @@ import {
 	applyWorkspaceCwd,
 	setWorkspaceCwdResolver,
 } from "./agent/pi-runner.js";
-import { completePromptOnce, runPromptSerialized, runPromptStreaming, runPromptStreamingInSession, runPromptInSession, abortCurrentPrompt } from "./agent/pi-runner.js";
+import { completePromptOnce, runPromptSerialized, runPromptStreaming, runPromptStreamingInSession, runPromptInSession, abortCurrentPrompt, persistPendingUserTurn } from "./agent/pi-runner.js";
 import type { ImageContent } from "@earendil-works/pi-ai";
 import { ChannelRegistry } from "./channels/channel.js";
 import { FeishuChannel } from "./channels/feishu/feishu-channel.js";
@@ -3123,13 +3123,25 @@ const server = createServer(async (req, res) => {
 				const fullText = targetSessionPath
 					? await runPromptStreamingInSession(targetSessionPath, prompt, onEvent, imageArgs)
 					: await runPromptStreaming(prompt, onEvent, imageArgs);
-				recordCurrentSessionChannel("web", capturedSessionId, { setOriginIfEmpty: true });
 				if (!aborted) sseWrite({ type: "done", fullText });
 				maybeAutoGenerateTopic(capturedSessionId);
 			} catch (err) {
 				if (!aborted) {
 					sseWrite({ type: "error", message: err instanceof Error ? err.message : "Unknown error" });
 				}
+			} finally {
+				// Always attribute this turn to the web channel — even on abort or
+				// error — so an interrupted first prompt keeps origin "web" instead
+				// of being mislabeled "cli" (which happens when no channels.json
+				// entry exists) and grouped/lost incorrectly in the sidebar.
+				recordCurrentSessionChannel("web", capturedSessionId, { setOriginIfEmpty: true });
+				// If the turn was interrupted before any assistant content was
+				// committed, the PI SDK never flushes the session to disk (it stays
+				// header-only / 0-byte), so the conversation disappears once the user
+				// switches away. Force a flush of the header + user message so the
+				// session stays in the sidebar and can be reopened. No-op when an
+				// assistant message already exists (normal/errored turns).
+				persistPendingUserTurn(capturedSessionId);
 			}
 			if (!aborted) {
 				res.write("data: [DONE]\n\n");

@@ -205,6 +205,15 @@ export function ChatCenter() {
 		[sessions.preselectedWorkspaceId, workspaces.list],
 	);
 
+	// User project workspaces the user can pick for a new chat — excludes the
+	// shared temp workspace and the channel-native workspaces (feishu/wechat/cli),
+	// matching the sidebar's grouping. Lets the bottom "新建对话" button reach an
+	// existing workspace instead of being forced into temp/new.
+	const selectableWorkspaces = useMemo(
+		() => workspaces.list.filter((w) => !w.isTemp && !w.id.startsWith("channel-")),
+		[workspaces.list],
+	);
+
 	// Welcome state: brand-new chat without an active session yet.
 	const isWelcome =
 		sessions.pendingNewSession ||
@@ -523,6 +532,9 @@ export function ChatCenter() {
 								<span className="text-xs text-slate-400">工作区</span>
 								<ModeChip selected={wsMode === "temp"} onClick={() => setWsMode("temp")}>临时·用完即弃</ModeChip>
 								<ModeChip selected={wsMode === "new"} onClick={() => setWsMode("new")}>新建工作区</ModeChip>
+								{selectableWorkspaces.length > 0 ? (
+									<ModeChip selected={wsMode === "existing"} onClick={() => setWsMode("existing")}>已有工作区</ModeChip>
+								) : null}
 								{wsMode === "new" ? (
 									<>
 										<input
@@ -543,6 +555,18 @@ export function ChatCenter() {
 											<Check size={11} /> 创建并绑定
 										</button>
 									</>
+								) : null}
+								{wsMode === "existing" ? (
+									<select
+										value={wsExistingId}
+										onChange={(e) => setWsExistingId(e.target.value)}
+										className="ml-1 max-w-[220px] rounded-full border border-slate-200 bg-white px-2 py-px text-[10px] leading-tight outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+									>
+										<option value="">选择一个工作区…</option>
+										{selectableWorkspaces.map((w) => (
+											<option key={w.id} value={w.id}>{w.name}</option>
+										))}
+									</select>
 								) : null}
 							</div>
 						)}
