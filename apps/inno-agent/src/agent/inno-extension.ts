@@ -71,7 +71,8 @@ function resolveActiveWorkspaceDir(paths: RuntimePaths, deps?: InnoExtensionDeps
 				const dir = deps.workspaceRegistry.resolveWorkspaceDir(workspaceId);
 				if (dir) return dir;
 			}
-		} catch {
+		} catch (err) {
+			logger.warn({ err }, "failed to resolve active workspace dir, falling back to root");
 			// Fall through to the workspace root.
 		}
 	}
@@ -93,7 +94,8 @@ function buildWorkspaceContextSections(workspaceDir: string): string[] {
 			if (content) {
 				sections.push(`# 工作区上下文 (${WORKSPACE_AGENT_FILE})\n\n${content}`);
 			}
-		} catch {
+		} catch (err) {
+			logger.warn({ err }, "failed to read workspace agent.md");
 			// Ignore unreadable agent.md
 		}
 	}
@@ -108,7 +110,8 @@ function buildWorkspaceContextSections(workspaceDir: string): string[] {
 					sections.push(`# 本工作区私有技能${block}`);
 				}
 			}
-		} catch {
+		} catch (err) {
+			logger.warn({ err }, "failed to discover workspace skills");
 			// Ignore skill discovery failures
 		}
 	}
@@ -337,7 +340,6 @@ export function createInnoExtension(
 				}
 			} catch (err) {
 				logger.warn({ err }, "Failed to load pi-subagents extension");
-				console.warn(`[inno] Failed to load pi-subagents: ${err instanceof Error ? err.message : String(err)}`);
 			}
 		}
 
@@ -425,7 +427,6 @@ export function createInnoExtension(
 			} as Parameters<typeof pi.registerTool>[0]);
 		} catch (err) {
 			logger.warn({ err }, "Failed to register ask_user_question tool");
-			console.warn(`[inno] Failed to register ask_user_question: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	};
 }

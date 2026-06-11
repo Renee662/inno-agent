@@ -6,6 +6,7 @@ import { Type } from "typebox";
 import { ChannelRegistry, FileSendNotSupportedError } from "./channel.js";
 import type { ChannelName } from "./types.js";
 import type { WorkspaceRegistry } from "../workspace/workspace-registry.js";
+import { logger } from "../logger.js";
 
 export interface ChannelToolsDeps {
 	channelRegistry: ChannelRegistry;
@@ -34,7 +35,8 @@ function resolveWorkspaceDir(deps: ChannelToolsDeps): string {
 				const dir = deps.workspaceRegistry.resolveWorkspaceDir(workspaceId);
 				if (dir) return dir;
 			}
-		} catch {
+		} catch (err) {
+			logger.warn({ err }, "failed to resolve workspace dir, falling back to root");
 			// fall through to runtime workspace root
 		}
 	}
@@ -189,7 +191,8 @@ export function createChannelTools(deps: ChannelToolsDeps): ToolDefinition[] {
 			// UI shows the channel badge (best-effort — never fail the send on this).
 			try {
 				deps.recordChannelInteraction?.(channelName);
-			} catch {
+			} catch (err) {
+				logger.warn({ err }, "failed to tag session channel interaction");
 				// ignore tagging failures
 			}
 

@@ -3,6 +3,7 @@
  * to generate structured wiki summaries from extracted content.
  */
 
+import { logger } from "../../logger.js";
 import { complete } from "@earendil-works/pi-ai";
 import type { Model } from "@earendil-works/pi-ai";
 import type { ModelRegistry } from "@earendil-works/pi-coding-agent";
@@ -53,7 +54,7 @@ export async function summarizeContent(
 	try {
 		const auth = await modelRegistry.getApiKeyAndHeaders(model);
 		if (!auth.ok || !auth.apiKey) {
-			console.error("[L2 summarizer] Failed to resolve API key");
+			logger.error("[L2 summarizer] Failed to resolve API key");
 			return null;
 		}
 
@@ -76,7 +77,7 @@ export async function summarizeContent(
 		);
 
 		if (response.stopReason === "error") {
-			console.error(`[L2 summarizer] LLM error: ${response.errorMessage ?? "unknown"}`);
+			logger.error({ errorMessage: response.errorMessage }, `[L2 summarizer] LLM error ?? "unknown"}`);
 			return null;
 		}
 
@@ -88,7 +89,7 @@ export async function summarizeContent(
 
 		return text || null;
 	} catch (err) {
-		console.error(`[L2 summarizer] Failed: ${err instanceof Error ? err.message : String(err)}`);
+		logger.warn({ err }, "[L2 summarizer] Failed");
 		return null;
 	}
 }

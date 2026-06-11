@@ -107,10 +107,10 @@ export async function initSession(
 			const sandboxExtension = mod as ExtensionFactory;
 			if (typeof sandboxExtension === "function") {
 				extensionFactories.push(sandboxExtension);
-				console.log("[inno-server] Sandbox extension loaded");
+				logger.info("[inno-server] Sandbox extension loaded");
 			}
 		} catch (err) {
-			console.warn(`[inno-server] Failed to load pi-sandbox: ${err instanceof Error ? err.message : String(err)}`);
+			logger.warn({ err }, "[inno-server] Failed to load pi-sandbox");
 		}
 	}
 
@@ -270,7 +270,8 @@ export async function abortCurrentPrompt(): Promise<void> {
 	if (!_runtime) return;
 	try {
 		await _runtime.session.abort();
-	} catch {
+	} catch (err) {
+		logger.warn({ err }, "abort prompt failed (session may already be idle)");
 		// ignore — session may already be idle
 	}
 }
@@ -428,7 +429,8 @@ export function persistPendingUserTurn(expectedSessionId?: string): boolean {
 		};
 		manager.appendMessage(placeholder);
 		return true;
-	} catch {
+	} catch (err) {
+		logger.warn({ err }, "persistPendingUserTurn failed (best-effort)");
 		// best-effort — never let a persistence hiccup break the abort path
 		return false;
 	}

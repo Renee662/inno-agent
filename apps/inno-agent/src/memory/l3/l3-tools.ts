@@ -12,6 +12,7 @@
  * keeps working on older runtimes.
  */
 
+import { logger } from "../../logger.js";
 import { Type } from "typebox";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { openL3Store, type L3Store } from "./sqlite-store.js";
@@ -38,7 +39,7 @@ export class L3Memory {
 		this.opened = true;
 		this.store = await openL3Store(this.l3DataDir);
 		if (!this.store) {
-			console.warn("[L3] node:sqlite unavailable — cross-conversation recall disabled.");
+			logger.warn("[L3] node:sqlite unavailable — cross-conversation recall disabled.");
 		}
 		return this.store;
 	}
@@ -51,9 +52,9 @@ export class L3Memory {
 		this.backfilled = true;
 		try {
 			const { sessions, chunks } = indexAllSessions(store, this.sessionDir);
-			if (sessions > 0) console.log(`[L3] indexed ${chunks} chunks from ${sessions} session(s).`);
+			if (sessions > 0) logger.info(`[L3] indexed ${chunks} chunks from ${sessions} session(s).`);
 		} catch (err) {
-			console.warn(`[L3] backfill failed: ${err instanceof Error ? err.message : String(err)}`);
+			logger.warn({ err }, `[L3] backfill failed: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	}
 
@@ -65,7 +66,7 @@ export class L3Memory {
 		try {
 			indexSession(store, join(this.sessionDir, sessionId));
 		} catch (err) {
-			console.warn(`[L3] index ${sessionId} failed: ${err instanceof Error ? err.message : String(err)}`);
+			logger.warn({ err }, `[L3] index ${sessionId} failed: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	}
 
@@ -121,13 +122,15 @@ export function createL3Tools(
 			try {
 				const sid = ctx.sessionManager.getSessionFile?.();
 				if (sid) current = sid.split(/[\\/]/).pop() ?? "";
-			} catch {
+			} catch (err) {
+				logger.warn({ err }, "failed to get session id from getter");
 				// ignore
 			}
 			if (!current && getCurrentSessionId) {
 				try {
 					current = getCurrentSessionId();
-				} catch {
+				} catch (err) {
+					logger.warn({ err }, "failed to get current session id from getter");
 					// ignore
 				}
 			}

@@ -2,6 +2,7 @@ import { localPtyBackend, type PtySession } from "./local-pty-backend.js";
 import type { RunRecordStore } from "./run-record-store.js";
 import type { RunRecord } from "./terminal-types.js";
 import type { WorkspaceRegistry } from "../workspace/workspace-registry.js";
+import { logger } from "../logger.js";
 
 export interface TerminalCreateInput {
 	sessionId: string;
@@ -111,7 +112,7 @@ export class TerminalSessionManager {
 	close(id: string): void {
 		const ts = this.byTerminalId.get(id);
 		if (!ts) return;
-		try { ts.pty.kill(); } catch { /* already dead */ }
+		try { ts.pty.kill(); } catch (err) { logger.warn({ err }, "pty kill failed (process already dead)"); /* already dead */ }
 		this.byTerminalId.delete(id);
 		this.byInnoSession.delete(ts.sessionId);
 	}
@@ -217,7 +218,8 @@ export class TerminalSessionManager {
 		if (!ts.activeRun) return;
 		try {
 			this.runs.appendOutput(ts.activeRun, chunk);
-		} catch {
+		} catch (err) {
+			logger.warn({ err }, "failed to record terminal output chunk (best-effort)");
 			// best-effort; don't break the pty stream
 		}
 	}

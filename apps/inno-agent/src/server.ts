@@ -105,7 +105,7 @@ async function ensureBootstrapped(): Promise<void> {
 	if (bootstrapPromise) return bootstrapPromise;
 
 	bootstrapPromise = (async () => {
-		console.log("[inno-server] first meaningful request — bootstrapping...");
+		logger.info("[inno-server] first meaningful request — bootstrapping...");
 
 		// ---- config (loaded lazily, not at process start) ----
 		config = loadConfig(paths.configPath);
@@ -131,7 +131,7 @@ async function ensureBootstrapped(): Promise<void> {
 				: [];
 			workspaceRegistry.migrateUnboundSessions(sessionFiles, DEFAULT_WORKSPACE_ID);
 		} catch (err) {
-			console.warn("[sessions] unbound-session migration failed:", err instanceof Error ? err.message : err);
+			logger.warn({ err }, "[sessions] unbound-session migration failed");
 		}
 
 		runRecordStore = new RunRecordStore(join(dataDir, "runs"));
@@ -185,7 +185,7 @@ async function ensureBootstrapped(): Promise<void> {
 		migrateReminderChannels();
 
 		// ---- agent session ----
-		console.log("[inno-server] initializing agent session...");
+		logger.info("[inno-server] initializing agent session...");
 		await initSession(config, paths, channelRegistry, {
 			sandbox: parsed.options.sandbox,
 			extensionDeps: {
@@ -212,7 +212,7 @@ async function ensureBootstrapped(): Promise<void> {
 					const ws = workspaceRegistry.ensureChannelWorkspace(channel);
 					workspaceRegistry.bindSession(sessionId, ws.id);
 				} catch (err) {
-					console.warn(`[sessions] failed to bind channel session ${sessionId}:`, err instanceof Error ? err.message : err);
+					logger.warn({ err }, `[sessions] failed to bind channel session ${sessionId}`);
 				}
 			},
 			channelsDataDir,
@@ -231,13 +231,13 @@ async function ensureBootstrapped(): Promise<void> {
 		const scheduler = new CronScheduler(jobStore, channelRegistry);
 		scheduler.start();
 
-		console.log("[inno-server] channels:", channelRegistry.all().map((c) => c.name).join(", ") || "none");
-		console.log("[inno-server] jobs loaded:", jobStore.list().length);
+		logger.info({ channels: channelRegistry.all().map((c) => c.name).join(", ") || "none" }, "[inno-server] channels");
+		logger.info({ jobCount: jobStore.list().length }, "[inno-server] jobs loaded");
 
 		bootstrapped = true;
-		console.log("[inno-server] bootstrap complete");
+		logger.info("[inno-server] bootstrap complete");
 	})().catch((err) => {
-		console.error("[inno-server] bootstrap failed:", err);
+		logger.error({ err }, "[inno-server] bootstrap failed");
 		bootstrapPromise = null; // allow retry on next request
 		throw err;
 	});
@@ -258,7 +258,7 @@ function readBody(req: HttpReq): Promise<unknown> {
 		req.on("end", () => {
 			try {
 				resolve(data ? JSON.parse(data) : {});
-			} catch {
+			} catch (err) {
 				reject(new Error("Invalid JSON body"));
 			}
 		});
@@ -392,7 +392,7 @@ function matchRoute(
 		if (patternParts[i].startsWith(":")) {
 			try {
 				params[patternParts[i].slice(1)] = decodeURIComponent(urlParts[i]);
-			} catch {
+			} catch (err) {
 				params[patternParts[i].slice(1)] = urlParts[i];
 			}
 		} else if (patternParts[i] !== urlParts[i]) {
@@ -432,7 +432,7 @@ function serveStatic(res: ServerResponse, filePath: string, sendBody = true): bo
 		res.writeHead(200, { "Content-Type": contentType, "Content-Length": content.length });
 		res.end(sendBody ? content : undefined);
 		return true;
-	} catch {
+	} catch (err) {
 		return false;
 	}
 }
@@ -460,7 +460,7 @@ function workspaceIdFromQuery(url: string): string {
 		const params = new URL(url, "http://localhost").searchParams;
 		const id = params.get("workspaceId");
 		return id && id.trim() ? id.trim() : TEMP_WORKSPACE_ID;
-	} catch {
+	} catch (err) {
 		return TEMP_WORKSPACE_ID;
 	}
 }
@@ -917,7 +917,7 @@ async function listSkillLibrary(forceRefresh = false): Promise<SkillLibraryItem[
 					headers: { "User-Agent": "inno-agent" },
 				});
 				if (res.ok) description = extractFrontmatterDescription(await res.text());
-			} catch {
+			} catch (err) {
 				// Description is best-effort; skip on failure.
 			}
 			return {
@@ -1081,7 +1081,7 @@ function listProjectSkills(): unknown[] {
  */
 function scheduleSkillsReload(): void {
 	void reloadResources().catch((err) => {
-		console.warn(`[inno-server] skills reload failed: ${err instanceof Error ? err.message : String(err)}`);
+		logger.warn({ err }, "[inno-server] skills reload failed");
 	});
 }
 
@@ -1470,7 +1470,7 @@ function parseSessionFile(filePath: string): { summary: SessionSummary; messages
 			},
 			messages: filtered,
 		};
-	} catch {
+	} catch (err) {
 		return null;
 	}
 }
@@ -1561,7 +1561,7 @@ function bindCliSessionWorkspace(summary: SessionSummary): SessionSummary {
 			const ws = workspaceRegistry.ensureChannelWorkspace("cli");
 			workspaceRegistry.bindSession(summary.id, ws.id);
 		}
-	} catch {
+	} catch (err) {
 		// best-effort — never fail the listing on a binding hiccup
 	}
 	return summary;
@@ -1603,7 +1603,7 @@ ${excerpt}`;
 	try {
 		const generated = cleanGeneratedTopic(await completePromptOnce(prompt, 64));
 		return generated || fallbackTopicFromMessages(messages, summary);
-	} catch {
+	} catch (err) {
 		return fallbackTopicFromMessages(messages, summary);
 	}
 }
@@ -1629,7 +1629,7 @@ function maybeAutoGenerateTopic(sessionId: string): void {
 			if (!parsed || parsed.messages.length < 2) return;
 			const topic = await generateSessionTopic(parsed.summary, parsed.messages);
 			writeSessionTopic(sessionId, topic, true);
-			console.log(`[auto-topic] ${sessionId} → ${topic}`);
+			logger.info(`[auto-topic] ${sessionId} → ${topic}`);
 		} catch (err) {
 			logger.warn({ err }, `auto-topic generation failed for ${sessionId}`);
 		} finally {
@@ -1776,7 +1776,7 @@ const server = createServer(async (req, res) => {
 			try {
 				const qr = await wechatChannel.getClient().getQrCode();
 				const raw = qr.qrcode_img_content ?? "";
-				console.log(`[wechat] QR response: qrcode=${qr.qrcode}, img_content length=${raw.length}, prefix=${raw.slice(0, 40)}`);
+				logger.info(`[wechat] QR response: qrcode=${qr.qrcode}, img_content length=${raw.length}, prefix=${raw.slice(0, 40)}`);
 				let qrUrl = raw;
 				if (qrUrl && !qrUrl.startsWith("data:") && !qrUrl.startsWith("http")) {
 					qrUrl = `data:image/png;base64,${qrUrl}`;
@@ -1954,6 +1954,7 @@ const server = createServer(async (req, res) => {
 			try {
 				json(res, 200, await listSkillLibrary(forceRefresh));
 			} catch (err) {
+				logger.warn({ err }, "failed to list skill library");
 				json(res, 502, { error: err instanceof Error ? err.message : "Failed to load skill library" });
 			}
 			return;
@@ -1973,6 +1974,7 @@ const server = createServer(async (req, res) => {
 				json(res, 201, entry ?? { name: installed.name });
 				scheduleSkillsReload();
 			} catch (err) {
+				logger.warn({ err }, "failed to import skill from library");
 				json(res, 502, { error: err instanceof Error ? err.message : "Failed to import skill" });
 			}
 			return;
@@ -3333,6 +3335,7 @@ const server = createServer(async (req, res) => {
 				}
 				config = saveConfig(paths.configPath, config);
 			} catch (err) {
+				logger.warn({ err }, "failed to update channel settings");
 				json(res, 400, { error: err instanceof Error ? err.message : String(err) });
 				return;
 			}
@@ -3667,7 +3670,7 @@ function bindTerminalWs(ws: WebSocket, terminalId: string): void {
 		let event: ClientTerminalEvent;
 		try {
 			event = JSON.parse(raw.toString()) as ClientTerminalEvent;
-		} catch {
+		} catch (err) {
 			sendTerminal(ws, { type: "error", message: "Invalid JSON" });
 			return;
 		}
@@ -3709,6 +3712,6 @@ function bindTerminalWs(ws: WebSocket, terminalId: string): void {
 // ---------------------------------------------------------------------------
 
 server.listen(port, () => {
-	console.log(`[inno-server] listening on http://localhost:${port}`);
-	console.log(`[inno-server] config: ${paths.configPath}`);
+	logger.info(`[inno-server] listening on http://localhost:${port}`);
+	logger.info(`[inno-server] config: ${paths.configPath}`);
 });

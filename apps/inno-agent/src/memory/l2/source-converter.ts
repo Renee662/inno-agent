@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { ensureDir, writeText } from "../../storage/file-store.js";
 import type { RawSourceType } from "./types.js";
+import { logger } from "../../logger.js";
 
 /**
  * Convert raw content to extracted markdown and save to data/l2/extracted/.
@@ -55,7 +56,8 @@ function formatConversation(content: string): string {
 				.join("\n\n");
 			if (formatted) return formatted;
 		}
-	} catch {
+	} catch (err) {
+		logger.warn({ err }, "failed to parse conversation JSON, treating as plain text");
 		// Not JSON, treat as plain text conversation
 	}
 	return content;

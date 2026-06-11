@@ -2,6 +2,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { ensureDir, writeText, readText, appendText, fileExists } from "../../storage/file-store.js";
 import type { WikiPageFrontmatter, WikiPageType, ManifestEntry } from "./types.js";
+import { logger } from "../../logger.js";
 
 const L2_SCHEMA_VERSION = "1.0";
 
@@ -104,7 +105,8 @@ export function parseFrontmatter(content: string): { frontmatter: WikiPageFrontm
 		try {
 			const parsed = JSON.parse(value) as unknown;
 			return typeof parsed === "string" ? parsed : value;
-		} catch {
+		} catch (err) {
+			logger.warn({ err, value }, "failed to parse frontmatter scalar");
 			return value;
 		}
 	}
@@ -464,7 +466,8 @@ function listWikiPagesForIndex(
 function readDirectoryMdFiles(dir: string): string[] {
 	try {
 		return readdirSync(dir).filter((file) => file.endsWith(".md"));
-	} catch {
+	} catch (err) {
+		logger.warn({ err, dir }, "failed to read wiki directory");
 		return [];
 	}
 }

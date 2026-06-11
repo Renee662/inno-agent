@@ -26,8 +26,10 @@ Key dependencies: `ws` (WebSocket), `node-pty` (PTY terminal), `cron-parser` (sc
 Three tsconfig files form the compilation setup:
 
 - **`tsconfig.base.json`** (repo root) — base config: `ES2022` target, `Node16` module/resolution, strict mode, `sourceMap`, `declaration` + `declarationMap`, `experimentalDecorators`, `emitDecoratorMetadata`, `resolveJsonModule`.
-- **`apps/inno-agent/tsconfig.json`** — backend: extends base patterns, `outDir: ./dist`, `rootDir: ./src`, `types: ["node"]`.
-- **`apps/inno-agent/web/tsconfig.json`** — frontend: `ESNext` module, `bundler` resolution, `lib` includes DOM/DOM.Iterable, `jsx: "react-jsx"`, `noEmit: true`, `isolatedModules: true`.
+- **`apps/inno-agent/tsconfig.json`** — backend: extends base patterns, `outDir: ./dist`, `rootDir: ./src`, `types: ["node"]`. Compiles `src/foo.ts` → `dist/foo.js`. The compiled server entry point is `dist/server.js` and CLI entry is `dist/cli.js`.
+- **`apps/inno-agent/web/tsconfig.json`** — frontend: `ESNext` module, `bundler` resolution, `lib` includes DOM/DOM.Iterable, `jsx: "react-jsx"`, `noEmit: true`, `isolatedModules: true`. TypeScript is only for type-checking during `vite build` — Vite handles the actual bundling.
+
+`tsx` is available as a dev dependency for running TypeScript files directly without compilation (e.g., `npx tsx some-script.ts`).
 
 ### Reference docs
 
@@ -59,7 +61,10 @@ npm run dev:server      # backend on :3000
 npm run web:dev         # Vite on :5173, proxies /api -> :3000
 
 # Watch mode (TypeScript recompile on change)
-npm run dev             # `tsc --watch` in apps/inno-agent
+npm run dev             # `tsc --watch` in apps/inno-agent (backend only, does not rebuild frontend)
+
+# Run a TypeScript file directly without building
+npx tsx some-script.ts
 
 # restart-dev.sh orchestration
 npm run restart         # full build + dev restart
@@ -173,7 +178,9 @@ Key files in `apps/inno-agent/src/agent/`:
 
 `cli.ts` calls PI's `main(...)` with this extension and forces `--no-skills --skill <skillsDir>` so only the project's skills directory is loaded.
 
-`server.ts` (HTTP) goes through `agent/pi-runner.ts`.
+`server.ts` (HTTP) goes through `agent/pi-runner.ts`. Both entry points import `source-map-support/register` at the top to produce readable error stacks from compiled JS, and both call `applyRuntimeEnvironment` from `runtime.ts` to resolve and export paths into `process.env` before anything else runs.
+
+The Electron main process (`electron/main.js`) spawns the server as a child process with `ELECTRON_RUN_AS_NODE=1` and passes `--server` as the first argument to ensure server mode.
 
 ### Storage layer (`src/storage/`)
 
@@ -261,6 +268,10 @@ The `PI_CODING_AGENT_DIR` env var is set to `configDir` in `runtime.ts` so pi-sa
 
 Hybrid React + Lit. Mounts in `web/src/main.tsx` → `react/App.tsx`. State lives in framework-agnostic `stores/` (small `EventEmitter`-based stores: `chat-store`, `sessions-store`, `wiki-store`, `jobs-store`, `skills-store`, `settings-store`, `workspace-store`, `workspaces-store`, `learner-store`, `notebook-store`, `terminal-store`, `graph-store`, `app-store`). Each store extends `EventEmitter` — components subscribe to change events and re-render on state mutation. REST/SSE calls go through `web/src/api/`. Some legacy Lit components remain under `components/`. Tailwind 4 via `@tailwindcss/vite`.
 
+**Component convention**: New components should be React (in `web/src/react/`). The `web/src/components/` directory holds legacy Lit Web Components that predate the React migration. Do not add new Lit components.
+
+**Store pattern**: Each store in `web/src/stores/` extends `EventEmitter` and manages a domain (chat, sessions, wiki, etc.). React components import the store singleton, read state snapshots, and subscribe to change events (typically via `useEffect` or a shared `hooks.ts`). All API calls happen through `web/src/api/client.ts`, a thin `fetch` wrapper that all domain-specific API modules (`api/chat.ts`, `api/wiki.ts`, etc.) use. Stores never call `fetch` directly — they go through the `api/` layer.
+
 Key UI dependencies: `cytoscape` (wiki graph), `@xterm/xterm` (in-browser terminal), `@uiw/react-codemirror` (code editor), `@uiw/react-md-editor` (markdown editor), `motion` (animations).
 
 **i18n**: The UI supports Chinese (`zh-CN`, default) and English (`en`), managed by `i18next` + `react-i18next` in `web/src/i18n/`. Locale is persisted to `localStorage` under `inno.locale`.
@@ -294,6 +305,26 @@ A multi-stage `Dockerfile` and `docker-compose.yml` are provided as deployment s
 Runtime config lives at `<configDir>/config.json` (template: `config.example.json` at repo root). It declares `defaultProvider`, `defaultModel`, a `providers` map (each with `baseUrl`, `api` ∈ {`openai-completions`, `anthropic-messages`}, `apiKey`, `models[]`), optional `server.port`, optional `channels.feishu` / `channels.qq` / `channels.wechat` blocks, optional `bridge.token` (for bridge-mode channels), and optional `subagents.enabled`. The server hot-rewrites this file when the user switches model via the UI.
 
 Model config supports `reasoning` (boolean), `contextWindow`, and `maxTokens` per model entry.
+
+Full config.json structure (see `config.example.json`):
+```json
+{
+  "defaultProvider": "innospark",
+  "defaultModel": "claude-sonnet-4-6",
+  "providers": { /* ... */ },
+  "server": { "port": 3000 },
+  "channels": {
+    "feishu": { "enabled": false, "personalOnly": true, "allowedUserIds": [] },
+    "qq":     { "enabled": false, "mode": "bridge", "personalOnly": true, "allowedUserIds": [], "sidecarBaseUrl": "http://127.0.0.1:4318" },
+    "wechat": { "enabled": false, "mode": "bridge", "personalOnly": true, "allowedUserIds": [], "sidecarBaseUrl": "http://127.0.0.1:4319" }
+  },
+  "bridge": { "token": "replace-me" },
+  "subagents": { "enabled": false },
+  "memory": { "l3Enabled": true }
+}
+```
+
+`memory.l3Enabled` gates cross-conversation recall (L3). `bridge.token` is the shared secret for bridge-mode IM channels (QQ, WeChat). Each channel supports `personalOnly` (restrict to specified users) and `allowedUserIds` (whitelist of user IDs).
 
 **Config manipulation** is centralized in `apps/inno-agent/src/config.ts` (`normalizeConfig`, `saveConfig`, `setDefaultModel`, `upsertProvider`, `deleteProvider`, `getConfiguredPort`). It handles legacy config migration (`openai` → `providers.openai-custom`) and normalizes missing fields with sensible defaults. All config writes should go through these helpers rather than directly writing the JSON file.
 

@@ -74,7 +74,7 @@ export class PersonalChannelDispatcher {
 				if (chatKey) {
 					this.chatSessionMap[chatKey] = newSessionId;
 					this.saveChatSessionMap();
-					console.log(`[dispatcher] bound ${chatKey} → ${newSessionId}`);
+					logger.info({ chatKey, newSessionId }, "dispatcher bound chat to session");
 				}
 				await channel.reply(msg, `已新建会话：${newSessionId}\n后续消息将在新会话中继续。`);
 			} catch (err) {
@@ -126,7 +126,7 @@ export class PersonalChannelDispatcher {
 				// Build path directly — don't use resolveSessionPath which checks
 				// existsSync (PI SDK creates session files lazily).
 				targetSessionPath = resolve(join(this.opts.sessionDir, newSessionId));
-				console.log(`[dispatcher] auto-created session for ${chatKey} → ${newSessionId}`);
+				logger.info({ chatKey, newSessionId }, "dispatcher auto-created session");
 			} catch (err) {
 				logger.error({ err }, "dispatcher failed to auto-create session");
 				// Fall through to global session as last resort
@@ -207,7 +207,8 @@ export class PersonalChannelDispatcher {
 			if (existsSync(this.chatSessionMapPath)) {
 				return JSON.parse(readFileSync(this.chatSessionMapPath, "utf-8")) as ChatSessionMap;
 			}
-		} catch {
+		} catch (err) {
+			logger.warn({ err }, "failed to load chat-sessions.json, starting fresh");
 			// ignore corrupt file
 		}
 		return {};

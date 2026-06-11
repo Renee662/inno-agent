@@ -11,6 +11,7 @@
  */
 
 import { segmentForFts, type L3SearchHit, type L3Store } from "./sqlite-store.js";
+import { logger } from "../../logger.js";
 
 export interface RecallOptions {
 	/**
@@ -121,7 +122,8 @@ function formatWhen(ts: number): string {
 	if (!Number.isFinite(ts) || ts <= 0) return "";
 	try {
 		return new Date(ts).toISOString().slice(0, 10);
-	} catch {
+	} catch (err) {
+		logger.warn({ err, ts }, "failed to format recall timestamp");
 		return "";
 	}
 }

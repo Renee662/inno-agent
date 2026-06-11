@@ -6,6 +6,7 @@ import { loadConfig } from "./config.js";
 import { createInnoExtension, type ConfigHolder } from "./agent/inno-extension.js";
 import { ensureDir } from "./storage/file-store.js";
 import { applyRuntimeEnvironment, parseRuntimeArgs, resolveRuntimePaths } from "./runtime.js";
+import { logger } from "./logger.js";
 
 // Set process title
 process.title = "inno";
@@ -46,10 +47,10 @@ if (parsed.options.sandbox) {
 		const sandboxExtension = mod as ExtensionFactory;
 		if (typeof sandboxExtension === "function") {
 			extensionFactories.push(sandboxExtension);
-			console.log("[inno] Sandbox extension loaded");
+			logger.info("[inno] Sandbox extension loaded");
 		}
 	} catch (err) {
-		console.warn(`[inno] Failed to load pi-sandbox: ${err instanceof Error ? err.message : String(err)}`);
+		logger.warn({ err }, "[inno] Failed to load pi-sandbox");
 	}
 }
 

@@ -51,12 +51,12 @@ export class WeChatChannel implements RealtimeChatChannel {
 
 	start(): void {
 		if (!this.client.isLoggedIn) {
-			console.log("[wechat] not logged in, skipping start");
+			logger.info("[wechat] not logged in, skipping start");
 			return;
 		}
 		if (this.running) return;
 		this.running = true;
-		console.log(`[wechat] starting message loop (bot_id=${this.client.botId})`);
+		logger.info({ botId: this.client.botId }, "[wechat] starting message loop");
 		void this.pollLoop();
 	}
 

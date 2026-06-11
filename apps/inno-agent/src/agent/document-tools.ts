@@ -2,6 +2,7 @@ import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent
 import { Type } from "typebox";
 import { resolve, isAbsolute } from "node:path";
 import { parseDocument, screenshotDocument, DocumentParseError } from "../memory/l2/document-parser.js";
+import { logger } from "../logger.js";
 
 /**
  * Create document parsing tools for the Inno Agent.
@@ -87,7 +88,8 @@ export function createDocumentTools(): ToolDefinition[] {
 							mimeType: "image/png",
 						});
 					}
-				} catch {
+				} catch (err) {
+					logger.warn({ err }, "document screenshot generation failed");
 					content.push({
 						type: "text",
 						text: "\n[截图生成失败，可能不支持该文件格式的截图]",

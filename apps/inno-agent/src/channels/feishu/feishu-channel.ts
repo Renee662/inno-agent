@@ -60,7 +60,7 @@ export class FeishuChannel implements RealtimeChatChannel {
 		});
 
 		this.wsClient.start({ eventDispatcher });
-		console.log("[feishu] WebSocket client started");
+		logger.info("[feishu] WebSocket client started");
 	}
 
 	private async parseEvent(data: Record<string, unknown>): Promise<IncomingMessage | null> {
