@@ -259,69 +259,27 @@ function OfficePreview({ file }: { file: WorkspaceFileDetail }) {
 	);
 }
 
+/* ---------- HtmlPreview (separate component for React Rules of Hooks) ---------- */
+
+function HtmlPreview({ file }: { file: WorkspaceFileDetail }) {
+  const raw = file.content ?? "";
+
+  const guardScript = `<script>(function(){\nfunction scrollToId(id){\n  if(!id){ window.scrollTo(0,0); return; }\n  var t=document.getElementById(id)||document.getElementsByName(id)[0];\n  if(t&&t.scrollIntoView) t.scrollIntoView({behavior:"smooth",block:"start"});\n}\ndocument.addEventListener("click",function(ev){\n  var a=ev.target&&ev.target.closest&&ev.target.closest("a[href]");\n  if(!a) return;\n  var href=a.getAttribute("href");\n  if(href&&(href==="#"||href.charAt(0)==="#")){ev.preventDefault();scrollToId(href.slice(1));return;}\n  if(!href||href===""||href.toLowerCase().indexOf("javascript:")===0){ev.preventDefault();return;}\n  ev.preventDefault();\n  try{window.open(a.href,"_blank","noopener");}catch(e){}\n},true);\ndocument.addEventListener("submit",function(ev){\n  var f=ev.target;if(!f) return;ev.preventDefault();\n  try{var url=(f.action&&f.action!=="")?f.action:null;if(url) window.open(url,"_blank","noopener");}catch(e){}\n},true);\n})();<\/script>`;
+
+  const html = /<head[^>]*>/i.test(raw)
+    ? raw.replace(/<head([^>]*)>/i, `<head$1>${guardScript}`)
+    : `<!doctype html><html><head>${guardScript}</head><body>${raw}</body></html>`;
+
+  return <iframe className="h-full w-full border-0 bg-white" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" srcDoc={html} title={file.name} />;
+}
+
 /* ---------- Preview (read-only) ---------- */
 
 function Preview({ file, isLoading }: { file: WorkspaceFileDetail; isLoading: boolean }) {
 	const { t } = useTranslation();
 	if (isLoading) return <div className="flex h-full items-center justify-center text-sm text-slate-500">{t("preview.loadingFile")}</div>;
 	if (file.kind === "markdown") return <div className="workspace-scroll h-full overflow-y-auto p-5"><markdown-artifact content={file.content ?? ""} /></div>;
-	if (file.kind === "html") {
-		// Wrap the user-supplied HTML so that:
-		//   • in-document anchors (`#section`) still scroll inside the iframe
-		//   • external links / forms open in a new tab instead of navigating the iframe
-		//   • attempts to navigate window.top / window.parent are neutralized
-		// Without this, clicking buttons or links inside e.g. paper_2309.11994.html
-		// either jumped the preview panel away or popped open a fresh app instance.
-		const raw = file.content ?? "";
-		const guardScript = `
-<script>(function(){
-	function scrollToId(id){
-		if(!id){ window.scrollTo(0,0); return; }
-		var t = document.getElementById(id) || document.getElementsByName(id)[0];
-		if(t && t.scrollIntoView) t.scrollIntoView({behavior:'smooth', block:'start'});
-	}
-	document.addEventListener('click', function(ev){
-		var a = ev.target && ev.target.closest && ev.target.closest('a[href]');
-		if(!a) return;
-		var href = a.getAttribute('href');
-		// Fragment / in-page anchor: scroll programmatically so the iframe
-		// doesn't try to navigate to the parent app's URL + #fragment.
-		if(href && (href === '#' || href.charAt(0) === '#')){
-			ev.preventDefault();
-			scrollToId(href.slice(1));
-			return;
-		}
-		// Empty / javascript: / unknown: swallow to avoid replacing the iframe.
-		if(!href || href === '' || href.toLowerCase().indexOf('javascript:') === 0){
-			ev.preventDefault();
-			return;
-		}
-		// Anything else: open in a new tab.
-		ev.preventDefault();
-		try { window.open(a.href, '_blank', 'noopener'); } catch(e) {}
-	}, true);
-	document.addEventListener('submit', function(ev){
-		var f = ev.target;
-		if(!f) return;
-		ev.preventDefault();
-		try {
-			var url = (f.action && f.action !== '') ? f.action : null;
-			if(url) window.open(url, '_blank', 'noopener');
-		} catch(e) {}
-	}, true);
-})();</script>`;
-		const html = /<head[^>]*>/i.test(raw)
-			? raw.replace(/<head([^>]*)>/i, `<head$1>${guardScript}`)
-			: `<!doctype html><html><head>${guardScript}</head><body>${raw}</body></html>`;
-		return (
-			<iframe
-				className="h-full w-full border-0 bg-white"
-				sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-				srcDoc={html}
-				title={file.name}
-			/>
-		);
-	}
+		if (file.kind === "html") return <HtmlPreview file={file} />;
 	if (file.kind === "pdf") {
 		// Default to fit-width so the PDF fills the preview panel horizontally.
 		// `view=FitH` (PDF Open Params) + `zoom=page-width` covers Chromium and Firefox.

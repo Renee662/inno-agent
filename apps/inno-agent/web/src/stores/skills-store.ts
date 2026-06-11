@@ -1,5 +1,5 @@
 import { EventEmitter } from "./event-emitter.js";
-import { deleteSkill, listSkills, reloadSkills, updateSkill, uploadSkill, getSkillTree, getSkillFile, saveSkillFile, listSkillLibrary, importSkillFromLibrary } from "../api/skills.js";
+import { deleteSkill, listSkills, reloadSkills, inlineSkillHtml, updateSkill, uploadSkill, getSkillTree, getSkillFile, saveSkillFile, listSkillLibrary, importSkillFromLibrary } from "../api/skills.js";
 import type { SkillInfo, SkillLibraryItem } from "../types/skills.js";
 import type { WorkspaceTreeNode, WorkspaceFileDetail } from "../types/workspace.js";
 
@@ -165,7 +165,11 @@ class SkillsStoreImpl extends EventEmitter<SkillsStoreEvents> {
 		this.isLoadingFile = true;
 		this.emit("change", undefined);
 		try {
-			this.currentFile = await getSkillFile(this.selectedSkill, path);
+			const file = await getSkillFile(this.selectedSkill, path);
+			if (file && file.kind === "html" && file.content) {
+				file.content = await inlineSkillHtml(this.selectedSkill, file.content, file.path);
+			}
+			this.currentFile = file;
 		} catch {
 			this.currentFile = null;
 		} finally {
