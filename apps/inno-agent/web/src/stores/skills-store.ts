@@ -183,6 +183,7 @@ class SkillsStoreImpl extends EventEmitter<SkillsStoreEvents> {
 
 	updateEditBuffer(value: string) {
 		this.editBuffer = value;
+		this.emit("change", undefined);
 	}
 
 	cancelEditing() {
