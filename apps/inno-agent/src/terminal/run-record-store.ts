@@ -3,6 +3,7 @@ import { basename, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { ensureDir, readJson, writeJson } from "../storage/file-store.js";
 import type { RunRecord } from "./terminal-types.js";
+import { logger } from "../logger.js";
 
 /** Cap how much of a log file we'll slurp into memory when building a tail. */
 const MAX_TAIL_BYTES = 256 * 1024;
@@ -146,7 +147,8 @@ export class RunRecordStore {
 				collapsed.push(trimmed);
 			}
 			return collapsed.slice(Math.max(0, collapsed.length - lines)).join("\n");
-		} catch {
+		} catch (err) {
+			logger.warn({ err, logPath: record.logPath }, "failed to read run output log");
 			return "";
 		}
 	}

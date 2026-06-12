@@ -6,6 +6,7 @@ import { DedupeStore } from "./dedupe-store.js";
 import { ChannelRunLog, generateRunId } from "./run-log.js";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { logger } from "../logger.js";
 
 const NEW_SESSION_COMMANDS = new Set(["/new", "新建对话", "新建会话"]);
 const MAX_TEXT_LENGTH = 20_000;
@@ -73,11 +74,11 @@ export class PersonalChannelDispatcher {
 				if (chatKey) {
 					this.chatSessionMap[chatKey] = newSessionId;
 					this.saveChatSessionMap();
-					console.log(`[dispatcher] bound ${chatKey} → ${newSessionId}`);
+					logger.info({ chatKey, newSessionId }, "dispatcher bound chat to session");
 				}
 				await channel.reply(msg, `已新建会话：${newSessionId}\n后续消息将在新会话中继续。`);
 			} catch (err) {
-				console.error(`[dispatcher] new session error:`, err);
+				logger.error({ err }, "dispatcher new session error");
 				await this.safeReply(channel, msg, "新建会话失败，请稍后重试。");
 			}
 			return;
@@ -125,9 +126,9 @@ export class PersonalChannelDispatcher {
 				// Build path directly — don't use resolveSessionPath which checks
 				// existsSync (PI SDK creates session files lazily).
 				targetSessionPath = resolve(join(this.opts.sessionDir, newSessionId));
-				console.log(`[dispatcher] auto-created session for ${chatKey} → ${newSessionId}`);
+				logger.info({ chatKey, newSessionId }, "dispatcher auto-created session");
 			} catch (err) {
-				console.error(`[dispatcher] failed to auto-create session for ${chatKey}:`, err);
+				logger.error({ err }, "dispatcher failed to auto-create session");
 				// Fall through to global session as last resort
 			}
 		}
@@ -168,7 +169,7 @@ export class PersonalChannelDispatcher {
 				durationMs: finishedAt.getTime() - startedAt.getTime(),
 				error: err instanceof Error ? err.message : String(err),
 			});
-			console.error(`[dispatcher] agent error (${runId}):`, err);
+			logger.error({ err }, "dispatcher agent error");
 			await this.safeReply(channel, msg, "这次处理失败了，请稍后重试。");
 		}
 	}
@@ -206,7 +207,8 @@ export class PersonalChannelDispatcher {
 			if (existsSync(this.chatSessionMapPath)) {
 				return JSON.parse(readFileSync(this.chatSessionMapPath, "utf-8")) as ChatSessionMap;
 			}
-		} catch {
+		} catch (err) {
+			logger.warn({ err }, "failed to load chat-sessions.json, starting fresh");
 			// ignore corrupt file
 		}
 		return {};
@@ -216,7 +218,7 @@ export class PersonalChannelDispatcher {
 		try {
 			writeFileSync(this.chatSessionMapPath, JSON.stringify(this.chatSessionMap, null, 2), "utf-8");
 		} catch (err) {
-			console.warn(`[dispatcher] failed to save chat-sessions.json: ${err instanceof Error ? err.message : String(err)}`);
+			logger.warn({ err }, "dispatcher failed to save chat-sessions.json");
 		}
 	}
 
@@ -224,11 +226,11 @@ export class PersonalChannelDispatcher {
 		try {
 			await channel.reply(msg, text);
 		} catch (err) {
-			console.error(`[dispatcher] reply failed (${msg.channel}/${msg.messageId}), retrying once...`);
+			logger.error("dispatcher reply failed, retrying");
 			try {
 				await channel.reply(msg, text);
 			} catch (retryErr) {
-				console.error(`[dispatcher] reply retry also failed:`, retryErr);
+				logger.error({ err: retryErr }, "dispatcher reply retry also failed");
 			}
 		}
 	}

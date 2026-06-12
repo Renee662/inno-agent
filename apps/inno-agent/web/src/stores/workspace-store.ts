@@ -9,6 +9,7 @@ import {
 	uploadWorkspaceFiles,
 	saveWorkspaceFile,
 	uploadWorkspaceSkill,
+	inlineWorkspaceHtml,
 } from "../api/workspace.js";
 import type { WorkspaceFileDetail, WorkspaceTree } from "../types/workspace.js";
 
@@ -76,7 +77,11 @@ class WorkspaceStoreImpl extends EventEmitter<WorkspaceStoreEvents> {
 		this.error = "";
 		this.emit("change", undefined);
 		try {
-			this.currentFile = await getWorkspaceFile(path, this.wsId);
+			const file = await getWorkspaceFile(path, this.wsId);
+			if (file && file.kind === "html" && file.content) {
+				file.content = await inlineWorkspaceHtml(file.content, file.path, this.wsId);
+			}
+			this.currentFile = file;
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : "Failed to load file";
 			this.currentFile = null;

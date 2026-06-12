@@ -2,6 +2,7 @@ import type { BridgeMessageBody, BridgeMessageResponse } from "./types.js";
 import type { IncomingMessage, ChannelName } from "../types.js";
 import type { PersonalChannelDispatcher } from "../personal-dispatcher.js";
 import type { ChannelRegistry } from "../channel.js";
+import { logger } from "../../logger.js";
 
 const VALID_BRIDGE_CHANNELS = new Set<string>(["qq", "wechat"]);
 
@@ -45,7 +46,7 @@ export function handleBridgeMessage(
 	};
 
 	opts.dispatcher.handle(channel, incoming).catch((err) => {
-		console.error(`[bridge-server] dispatch error for ${msg.channel}/${msg.messageId}:`, err);
+		logger.error({ err }, `bridge dispatch error for ${msg.channel}/${msg.messageId}`);
 	});
 
 	return { status: 200, body: { ok: true } };

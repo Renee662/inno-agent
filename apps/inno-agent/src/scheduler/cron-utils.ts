@@ -1,3 +1,4 @@
+import { logger } from "../logger.js";
 import { CronExpressionParser } from "cron-parser";
 
 export function computeNextRunAt(
@@ -11,7 +12,8 @@ export function computeNextRunAt(
 			tz: timezone || "Asia/Shanghai",
 		});
 		return expr.next().toDate().toISOString();
-	} catch {
+	} catch (err) {
+		logger.warn({ err, cron }, "failed to compute next run time");
 		return undefined;
 	}
 }
@@ -35,7 +37,8 @@ export function isCronDue(
 		}
 
 		return prev.getTime() > new Date(lastRunAt).getTime();
-	} catch {
+	} catch (err) {
+		logger.warn({ err, cron }, "failed to check if cron is due");
 		return false;
 	}
 }

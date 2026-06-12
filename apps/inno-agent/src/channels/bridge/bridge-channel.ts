@@ -2,6 +2,7 @@ import type { ChatChannel } from "../channel.js";
 import { FileSendNotSupportedError } from "../channel.js";
 import type { IncomingMessage, PushTarget, ChannelName } from "../types.js";
 import type { BridgeReplyBody, BridgePushBody, BridgeHealthStatus } from "./types.js";
+import { logger } from "../../logger.js";
 
 export class BridgeChannel implements ChatChannel {
 	readonly name: string;
@@ -88,7 +89,7 @@ export class BridgeChannel implements ChatChannel {
 				throw new Error(`Sidecar ${path} returned ${resp.status}: ${text}`);
 			}
 		} catch (err) {
-			console.error(`[bridge:${this.name}] sidecar call ${path} failed:`, err instanceof Error ? err.message : err);
+			logger.error({ err }, `bridge sidecar call ${path} failed`);
 			throw err;
 		}
 	}

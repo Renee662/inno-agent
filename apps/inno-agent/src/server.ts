@@ -1,10 +1,14 @@
+// Register source-map-support so that compiled JS stack traces and
+// pino-caller call sites map back to the original TS source locations.
+import "source-map-support/register.js";
+
 import { createServer, type IncomingMessage as HttpReq, type ServerResponse } from "node:http";
 import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
-import { getConfiguredPort, loadConfig, saveConfig, setDefaultModel, upsertProvider, deleteProvider, type InnoModelConfig, type InnoProviderConfig } from "./config.js";
+import { loadConfig, saveConfig, setDefaultModel, upsertProvider, deleteProvider, type InnoConfig, type InnoModelConfig, type InnoProviderConfig } from "./config.js";
 import { ensureDir, readJson, readText, writeJson, writeText } from "./storage/file-store.js";
 import {
 	createNewSession,
@@ -39,6 +43,7 @@ import { readManifest } from "./memory/l2/manifest-store.js";
 import { loadProfile, saveProfile } from "./memory/learner/profile-store.js";
 import type { LearnerProfile, LearningGoal, KnowledgeState, Misconception, LearnerPreferences } from "./memory/learner/types.js";
 import { randomUUID } from "node:crypto";
+import { logger } from "./logger.js";
 import { applyRuntimeEnvironment, parseRuntimeArgs, resolveRuntimePaths } from "./runtime.js";
 import { questionBridge, type QuestionBridgeResult } from "./agent/question-bridge.js";
 import { DEFAULT_WORKSPACE_ID, TEMP_WORKSPACE_ID, WorkspaceRegistry } from "./workspace/workspace-registry.js";
@@ -56,91 +61,189 @@ setGlobalDispatcher(new EnvHttpProxyAgent({ bodyTimeout: 0, headersTimeout: 0 })
 const parsed = parseRuntimeArgs(process.argv.slice(2));
 const paths = resolveRuntimePaths(parsed.options);
 applyRuntimeEnvironment(paths);
-let config = loadConfig(paths.configPath);
-const port = getConfiguredPort(config, parsed.options.port);
 
-// Ensure directories
+// Port is resolved from CLI / env only — config.json is read lazily.
+const port = parsed.options.port
+	?? (process.env.INNO_PORT ? Number.parseInt(process.env.INNO_PORT, 10) : undefined)
+	?? 3000;
+
+// Config is loaded on first API request, not at startup.
+let config!: InnoConfig;
+
+// ---------------------------------------------------------------------------
+// Lazy bootstrap — directories, stores, channels, and agent session are
+// deferred until the first meaningful web request (not /health or static files).
+// Before that, no INNO_HOME subdirectories or files are created.
+// ---------------------------------------------------------------------------
+
 const dataDir = paths.dataDir;
-ensureDir(paths.learnerDataDir);
-ensureDir(paths.sessionDir);
-ensureDir(paths.jobsDir);
-ensureDir(paths.skillsDir);
-ensureDir(paths.workspaceDir);
-
-// Stores
-const jobStore = new JobStore(paths.jobsDir);
-jobStore.normalizePersistedJobs();
 const l2DataDir = paths.l2DataDir;
 const skillsDir = paths.skillsDir;
-const channelRegistry = new ChannelRegistry(join(dataDir, "channels", "default-targets.json"));
-const workspaceRegistry = new WorkspaceRegistry(paths.workspaceDir, dataDir);
-workspaceRegistry.ensureBootstrapped();
-// One-time: bind legacy unbound sessions to the default workspace IF it still
-// exists (older installs). On fresh installs the default workspace is gone, so
-// migrateUnboundSessions no-ops and unbound sessions fall back to tmp.
-try {
-	const sessionFiles = existsSync(paths.sessionDir)
-		? readdirSync(paths.sessionDir).filter((f) => f.endsWith(".jsonl"))
-		: [];
-	workspaceRegistry.migrateUnboundSessions(sessionFiles, DEFAULT_WORKSPACE_ID);
-} catch (err) {
-	console.warn("[sessions] unbound-session migration failed:", err instanceof Error ? err.message : err);
-}
-const runRecordStore = new RunRecordStore(join(dataDir, "runs"));
-const terminalManager = new TerminalSessionManager(workspaceRegistry, runRecordStore);
 
-// Resolve agent cwd per session based on its workspace binding.
-setWorkspaceCwdResolver((sessionPath: string) => {
-	const id = basename(sessionPath);
-	const workspaceId = workspaceRegistry.getSessionWorkspaceId(id);
-	return workspaceRegistry.resolveWorkspaceDir(workspaceId);
-});
-
-migrateLegacyPiSkills();
-
-function migrateReminderChannels(): void {
-	const defaultFeishuTarget = channelRegistry.getDefaultTarget("feishu");
-	if (!defaultFeishuTarget) return;
-	for (const job of jobStore.list()) {
-		if (job.taskType !== "push_reminder") continue;
-		if (job.channel) continue;
-		jobStore.update(job.id, {
-			channel: "feishu",
-			target: defaultFeishuTarget,
-		});
-	}
-}
-
-// Register enabled channels
+// All stateful services are declared with !: — they are guaranteed to be
+// initialised before any API handler that uses them runs, because the HTTP
+// handler calls ensureBootstrapped() before dispatching.
+let jobStore!: JobStore;
+let channelRegistry!: ChannelRegistry;
+let workspaceRegistry!: WorkspaceRegistry;
+let runRecordStore!: RunRecordStore;
+let terminalManager!: TerminalSessionManager;
 let feishuChannel: FeishuChannel | null = null;
-if (config.feishu?.appId && config.channels?.feishu?.enabled) {
-	feishuChannel = new FeishuChannel(config.feishu, dataDir, config.channels.feishu);
-	channelRegistry.register(feishuChannel);
-}
-
-// Register bridge channels (QQ, and WeChat in bridge mode)
-const bridgeToken = config.bridge?.token;
-if (bridgeToken) {
-	const qqConfig = config.channels?.qq as PersonalBridgeChannelConfig | undefined;
-	if (qqConfig?.enabled && qqConfig.sidecarBaseUrl) {
-		channelRegistry.register(new BridgeChannel("qq", qqConfig.sidecarBaseUrl, bridgeToken));
-	}
-	const wechatConfig = config.channels?.wechat;
-	if (wechatConfig?.enabled && "sidecarBaseUrl" in wechatConfig && (wechatConfig as PersonalBridgeChannelConfig).mode === "bridge") {
-		channelRegistry.register(new BridgeChannel("wechat", (wechatConfig as PersonalBridgeChannelConfig).sidecarBaseUrl, bridgeToken));
-	}
-}
-
-// Register WeChat iLink channel (native mode, default)
 let wechatChannel: WeChatChannel | null = null;
-const wechatConfig = config.channels?.wechat;
-if (wechatConfig?.enabled && (!("mode" in wechatConfig) || (wechatConfig as { mode?: string }).mode !== "bridge")) {
-	wechatChannel = new WeChatChannel(dataDir, wechatConfig);
-	channelRegistry.register(wechatChannel);
-}
-migrateReminderChannels();
-
 let dispatcher: PersonalChannelDispatcher | null = null;
+
+let bootstrapped = false;
+let bootstrapPromise: Promise<void> | null = null;
+let bridgeToken: string | undefined;
+
+/**
+ * One-shot lazy bootstrap. Idempotent — concurrent requests while the first
+ * bootstrap is still in-flight all await the same promise.
+ */
+async function ensureBootstrapped(): Promise<void> {
+	if (bootstrapped) return;
+	if (bootstrapPromise) return bootstrapPromise;
+
+	bootstrapPromise = (async () => {
+		logger.info("[inno-server] first meaningful request — bootstrapping...");
+
+		// ---- config (loaded lazily, not at process start) ----
+		config = loadConfig(paths.configPath);
+
+		// ---- data directories ----
+		ensureDir(paths.learnerDataDir);
+		ensureDir(paths.sessionDir);
+		ensureDir(paths.jobsDir);
+		ensureDir(paths.skillsDir);
+		ensureDir(paths.workspaceDir);
+
+		// ---- stores ----
+		jobStore = new JobStore(paths.jobsDir);
+		jobStore.normalizePersistedJobs();
+
+		channelRegistry = new ChannelRegistry(join(dataDir, "channels", "default-targets.json"));
+
+		workspaceRegistry = new WorkspaceRegistry(paths.workspaceDir, dataDir);
+		workspaceRegistry.ensureBootstrapped();
+		try {
+			const sessionFiles = existsSync(paths.sessionDir)
+				? readdirSync(paths.sessionDir).filter((f) => f.endsWith(".jsonl"))
+				: [];
+			workspaceRegistry.migrateUnboundSessions(sessionFiles, DEFAULT_WORKSPACE_ID);
+		} catch (err) {
+			logger.warn({ err }, "[sessions] unbound-session migration failed");
+		}
+
+		runRecordStore = new RunRecordStore(join(dataDir, "runs"));
+		terminalManager = new TerminalSessionManager(workspaceRegistry, runRecordStore);
+
+		// Resolve agent cwd per session based on its workspace binding.
+		setWorkspaceCwdResolver((sessionPath: string) => {
+			const id = basename(sessionPath);
+			const workspaceId = workspaceRegistry.getSessionWorkspaceId(id);
+			return workspaceRegistry.resolveWorkspaceDir(workspaceId);
+		});
+
+		migrateLegacyPiSkills();
+
+		// ---- channels ----
+		function migrateReminderChannels(): void {
+			const defaultFeishuTarget = channelRegistry.getDefaultTarget("feishu");
+			if (!defaultFeishuTarget) return;
+			for (const job of jobStore.list()) {
+				if (job.taskType !== "push_reminder") continue;
+				if (job.channel) continue;
+				jobStore.update(job.id, {
+					channel: "feishu",
+					target: defaultFeishuTarget,
+				});
+			}
+		}
+
+		if (config.feishu?.appId && config.channels?.feishu?.enabled) {
+			feishuChannel = new FeishuChannel(config.feishu, dataDir, config.channels.feishu);
+			channelRegistry.register(feishuChannel);
+		}
+
+		bridgeToken = config.bridge?.token;
+		if (bridgeToken) {
+			const qqConfig = config.channels?.qq as PersonalBridgeChannelConfig | undefined;
+			if (qqConfig?.enabled && qqConfig.sidecarBaseUrl) {
+				channelRegistry.register(new BridgeChannel("qq", qqConfig.sidecarBaseUrl, bridgeToken));
+			}
+			const wechatConfigBridge = config.channels?.wechat;
+			if (wechatConfigBridge?.enabled && "sidecarBaseUrl" in wechatConfigBridge && (wechatConfigBridge as PersonalBridgeChannelConfig).mode === "bridge") {
+				channelRegistry.register(new BridgeChannel("wechat", (wechatConfigBridge as PersonalBridgeChannelConfig).sidecarBaseUrl, bridgeToken));
+			}
+		}
+
+		const wechatCfg = config.channels?.wechat;
+		if (wechatCfg?.enabled && (!("mode" in wechatCfg) || (wechatCfg as { mode?: string }).mode !== "bridge")) {
+			wechatChannel = new WeChatChannel(dataDir, wechatCfg);
+			channelRegistry.register(wechatChannel);
+		}
+		migrateReminderChannels();
+
+		// ---- agent session ----
+		logger.info("[inno-server] initializing agent session...");
+		await initSession(config, paths, channelRegistry, {
+			sandbox: parsed.options.sandbox,
+			extensionDeps: {
+				workspaceRegistry,
+				runRecordStore,
+				getCurrentSessionId,
+				recordChannelInteraction: (channel) => recordCurrentSessionChannel(channel as SessionChannel),
+			},
+		});
+
+		// ---- post-init: dispatcher, channels, cron, WebSocket ----
+		const channelsDataDir = join(dataDir, "channels");
+		ensureDir(channelsDataDir);
+		dispatcher = new PersonalChannelDispatcher({
+			channelRegistry,
+			runPrompt: runPromptSerialized,
+			runPromptInSession,
+			createNewSession,
+			getCurrentSessionId,
+			recordSessionChannel: (ch, sid?) => recordCurrentSessionChannel(ch as SessionChannel, sid, { setOriginIfEmpty: true }),
+			maybeAutoGenerateTopic,
+			onSessionCreated: (sessionId, channel) => {
+				try {
+					const ws = workspaceRegistry.ensureChannelWorkspace(channel);
+					workspaceRegistry.bindSession(sessionId, ws.id);
+				} catch (err) {
+					logger.warn({ err }, `[sessions] failed to bind channel session ${sessionId}`);
+				}
+			},
+			channelsDataDir,
+			sessionDir: join(dataDir, "sessions"),
+		});
+
+		if (feishuChannel) {
+			feishuChannel.onMessage((msg) => dispatcher!.handle(feishuChannel!, msg));
+			feishuChannel.start();
+		}
+		if (wechatChannel) {
+			wechatChannel.onMessage((msg) => dispatcher!.handle(wechatChannel!, msg));
+			wechatChannel.start();
+		}
+
+		const scheduler = new CronScheduler(jobStore, channelRegistry);
+		scheduler.start();
+
+		logger.info({ channels: channelRegistry.all().map((c) => c.name).join(", ") || "none" }, "[inno-server] channels");
+		logger.info({ jobCount: jobStore.list().length }, "[inno-server] jobs loaded");
+
+		bootstrapped = true;
+		logger.info("[inno-server] bootstrap complete");
+	})().catch((err) => {
+		logger.error({ err }, "[inno-server] bootstrap failed");
+		bootstrapPromise = null; // allow retry on next request
+		throw err;
+	});
+
+	return bootstrapPromise;
+}
 
 // ---------------------------------------------------------------------------
 // HTTP helpers
@@ -155,7 +258,7 @@ function readBody(req: HttpReq): Promise<unknown> {
 		req.on("end", () => {
 			try {
 				resolve(data ? JSON.parse(data) : {});
-			} catch {
+			} catch (err) {
 				reject(new Error("Invalid JSON body"));
 			}
 		});
@@ -289,7 +392,7 @@ function matchRoute(
 		if (patternParts[i].startsWith(":")) {
 			try {
 				params[patternParts[i].slice(1)] = decodeURIComponent(urlParts[i]);
-			} catch {
+			} catch (err) {
 				params[patternParts[i].slice(1)] = urlParts[i];
 			}
 		} else if (patternParts[i] !== urlParts[i]) {
@@ -329,7 +432,7 @@ function serveStatic(res: ServerResponse, filePath: string, sendBody = true): bo
 		res.writeHead(200, { "Content-Type": contentType, "Content-Length": content.length });
 		res.end(sendBody ? content : undefined);
 		return true;
-	} catch {
+	} catch (err) {
 		return false;
 	}
 }
@@ -357,7 +460,7 @@ function workspaceIdFromQuery(url: string): string {
 		const params = new URL(url, "http://localhost").searchParams;
 		const id = params.get("workspaceId");
 		return id && id.trim() ? id.trim() : TEMP_WORKSPACE_ID;
-	} catch {
+	} catch (err) {
 		return TEMP_WORKSPACE_ID;
 	}
 }
@@ -541,7 +644,7 @@ function validateZipEntries(zipPath: string): void {
 	}
 	const result = spawnSync("/usr/bin/unzip", ["-Z1", zipPath], { encoding: "utf-8" });
 	if (result.status !== 0) {
-		throw new Error(result.stderr.trim() || "Unable to inspect zip file");
+			throw new Error((result.stderr || "").trim() || "Unable to inspect zip file");
 	}
 	for (const rawLine of result.stdout.split("\n")) {
 		const entry = rawLine.trim();
@@ -618,7 +721,7 @@ function installSkillZip(fileName: string, data: Buffer, targetRoot: string = sk
 		} else {
 			const unzipResult = spawnSync("/usr/bin/unzip", ["-qq", "-o", zipPath, "-d", extractDir], { encoding: "utf-8" });
 			if (unzipResult.status !== 0) {
-				throw new Error(unzipResult.stderr.trim() || "Unable to unzip skill package");
+				throw new Error((unzipResult.stderr || "").trim() || "Unable to unzip skill package");
 			}
 		}
 
@@ -814,7 +917,7 @@ async function listSkillLibrary(forceRefresh = false): Promise<SkillLibraryItem[
 					headers: { "User-Agent": "inno-agent" },
 				});
 				if (res.ok) description = extractFrontmatterDescription(await res.text());
-			} catch {
+			} catch (err) {
 				// Description is best-effort; skip on failure.
 			}
 			return {
@@ -978,7 +1081,7 @@ function listProjectSkills(): unknown[] {
  */
 function scheduleSkillsReload(): void {
 	void reloadResources().catch((err) => {
-		console.warn(`[inno-server] skills reload failed: ${err instanceof Error ? err.message : String(err)}`);
+		logger.warn({ err }, "[inno-server] skills reload failed");
 	});
 }
 
@@ -1367,7 +1470,7 @@ function parseSessionFile(filePath: string): { summary: SessionSummary; messages
 			},
 			messages: filtered,
 		};
-	} catch {
+	} catch (err) {
 		return null;
 	}
 }
@@ -1458,7 +1561,7 @@ function bindCliSessionWorkspace(summary: SessionSummary): SessionSummary {
 			const ws = workspaceRegistry.ensureChannelWorkspace("cli");
 			workspaceRegistry.bindSession(summary.id, ws.id);
 		}
-	} catch {
+	} catch (err) {
 		// best-effort — never fail the listing on a binding hiccup
 	}
 	return summary;
@@ -1500,7 +1603,7 @@ ${excerpt}`;
 	try {
 		const generated = cleanGeneratedTopic(await completePromptOnce(prompt, 64));
 		return generated || fallbackTopicFromMessages(messages, summary);
-	} catch {
+	} catch (err) {
 		return fallbackTopicFromMessages(messages, summary);
 	}
 }
@@ -1526,9 +1629,9 @@ function maybeAutoGenerateTopic(sessionId: string): void {
 			if (!parsed || parsed.messages.length < 2) return;
 			const topic = await generateSessionTopic(parsed.summary, parsed.messages);
 			writeSessionTopic(sessionId, topic, true);
-			console.log(`[auto-topic] ${sessionId} → ${topic}`);
+			logger.info(`[auto-topic] ${sessionId} → ${topic}`);
 		} catch (err) {
-			console.warn(`[auto-topic] failed for ${sessionId}:`, err instanceof Error ? err.message : String(err));
+			logger.warn({ err }, `auto-topic generation failed for ${sessionId}`);
 		} finally {
 			_pendingAutoTopics.delete(sessionId);
 		}
@@ -1544,10 +1647,18 @@ const server = createServer(async (req, res) => {
 	const method = req.method ?? "GET";
 
 	try {
-		// --- Health check ---
+		// --- Health check (no bootstrap needed) ---
 		if (method === "GET" && url === "/health") {
 			json(res, 200, { status: "ok" });
 			return;
+		}
+
+		// --- Lazy bootstrap on first API request ---
+		// All /api/* endpoints need the agent session and data stores.
+		// Static files and SPA fallback skip this so no directories are
+		// created until the user actually interacts with the web UI.
+		if (url.startsWith("/api/")) {
+			await ensureBootstrapped();
 		}
 
 		// --- Jobs CRUD ---
@@ -1665,13 +1776,14 @@ const server = createServer(async (req, res) => {
 			try {
 				const qr = await wechatChannel.getClient().getQrCode();
 				const raw = qr.qrcode_img_content ?? "";
-				console.log(`[wechat] QR response: qrcode=${qr.qrcode}, img_content length=${raw.length}, prefix=${raw.slice(0, 40)}`);
+				logger.info(`[wechat] QR response: qrcode=${qr.qrcode}, img_content length=${raw.length}, prefix=${raw.slice(0, 40)}`);
 				let qrUrl = raw;
 				if (qrUrl && !qrUrl.startsWith("data:") && !qrUrl.startsWith("http")) {
 					qrUrl = `data:image/png;base64,${qrUrl}`;
 				}
 				json(res, 200, { qrId: qr.qrcode, qrUrl });
 			} catch (err) {
+				logger.error({ err }, "WeChat QR login failed");
 				json(res, 500, { error: err instanceof Error ? err.message : "Failed to get QR code" });
 			}
 			return;
@@ -1699,6 +1811,7 @@ const server = createServer(async (req, res) => {
 				}
 				json(res, 200, { status: status.status, botId: status.ilink_bot_id });
 			} catch (err) {
+				logger.error({ err }, "WeChat QR status check failed");
 				json(res, 500, { error: err instanceof Error ? err.message : "Failed to check QR status" });
 			}
 			return;
@@ -1841,6 +1954,7 @@ const server = createServer(async (req, res) => {
 			try {
 				json(res, 200, await listSkillLibrary(forceRefresh));
 			} catch (err) {
+				logger.warn({ err }, "failed to list skill library");
 				json(res, 502, { error: err instanceof Error ? err.message : "Failed to load skill library" });
 			}
 			return;
@@ -1860,6 +1974,7 @@ const server = createServer(async (req, res) => {
 				json(res, 201, entry ?? { name: installed.name });
 				scheduleSkillsReload();
 			} catch (err) {
+				logger.warn({ err }, "failed to import skill from library");
 				json(res, 502, { error: err instanceof Error ? err.message : "Failed to import skill" });
 			}
 			return;
@@ -2178,7 +2293,7 @@ const server = createServer(async (req, res) => {
 					await applyWorkspaceCwd(sessionPath);
 				}
 			} catch (err) {
-				console.warn(`[sessions] failed to bind workspace for ${id}:`, err instanceof Error ? err.message : err);
+				logger.warn({ err }, `failed to bind workspace for session ${id}`);
 			}
 
 			json(res, 201, { id, active: true, workspaceId });
@@ -2228,8 +2343,8 @@ const server = createServer(async (req, res) => {
 				if (shouldDropTempWorkspace) {
 					workspaceRegistry.deleteWorkspace(boundWorkspaceId, { removeFiles: true });
 				}
-			} catch {
-				// best-effort cleanup
+			} catch (err) {
+				logger.warn({ err }, "session delete cleanup failed");
 			}
 			json(res, 200, { id: sessionId, deleted: true, newActiveId });
 			return;
@@ -2275,7 +2390,8 @@ const server = createServer(async (req, res) => {
 					}
 				}
 				json(res, 200, pages);
-			} catch {
+			} catch (err) {
+				logger.warn({ err }, "failed to list wiki pages");
 				json(res, 200, []);
 			}
 			return;
@@ -2377,7 +2493,8 @@ const server = createServer(async (req, res) => {
 				}
 
 				json(res, 200, { nodes, edges });
-			} catch {
+			} catch (err) {
+				logger.warn({ err }, "failed to build wiki graph");
 				json(res, 200, { nodes: [], edges: [] });
 			}
 			return;
@@ -2396,7 +2513,8 @@ const server = createServer(async (req, res) => {
 					}
 				}
 				json(res, 200, { pageCount, totalSize, entryCount: entries.length });
-			} catch {
+			} catch (err) {
+				logger.warn({ err }, "failed to compute wiki stats");
 				json(res, 200, { pageCount: 0, totalSize: 0, entryCount: 0 });
 			}
 			return;
@@ -2654,6 +2772,7 @@ const server = createServer(async (req, res) => {
 				});
 				res.end(zipData);
 			} catch (err) {
+				logger.error({ err }, "failed to create zip archive");
 				json(res, 500, { error: err instanceof Error ? err.message : "Failed to create zip archive" });
 			}
 			return;
@@ -2679,6 +2798,7 @@ const server = createServer(async (req, res) => {
 					pages: parsed.pages,
 				});
 			} catch (err) {
+				logger.warn({ err }, "failed to parse office document");
 				json(res, 422, { error: err instanceof Error ? err.message : "Failed to parse document" });
 			}
 			return;
@@ -2827,6 +2947,7 @@ const server = createServer(async (req, res) => {
 						installedSkill = true;
 						continue;
 					} catch (err) {
+						logger.error({ err }, "failed to install skill package during upload");
 						json(res, 400, { error: err instanceof Error ? err.message : "Failed to install skill package" });
 						return;
 					}
@@ -2867,6 +2988,7 @@ const server = createServer(async (req, res) => {
 				scheduleSkillsReload();
 				json(res, 201, workspaceSkillNode(root, skill.name));
 			} catch (err) {
+				logger.error({ err }, "failed to install workspace skill package");
 				json(res, 400, { error: err instanceof Error ? err.message : "Failed to install skill package" });
 			}
 			return;
@@ -2890,6 +3012,7 @@ const server = createServer(async (req, res) => {
 				const ws = workspaceRegistry.createWorkspace({ name, isTemp });
 				json(res, 201, ws);
 			} catch (err) {
+				logger.error({ err }, "failed to create workspace");
 				json(res, 400, { error: err instanceof Error ? err.message : "Failed to create workspace" });
 			}
 			return;
@@ -2964,6 +3087,7 @@ const server = createServer(async (req, res) => {
 				const ts = terminalManager.create({ sessionId, workspaceId: requestedWs, cols, rows });
 				json(res, 201, { id: ts.id, sessionId: ts.sessionId, workspaceId: ts.workspaceId, cwd: ts.cwd, status: "ready" });
 			} catch (err) {
+				logger.error({ err }, "failed to create terminal session");
 				json(res, 400, { error: err instanceof Error ? err.message : "Failed to create terminal" });
 			}
 			return;
@@ -3156,6 +3280,7 @@ const server = createServer(async (req, res) => {
 				config = saveConfig(paths.configPath, deleteProvider(config, providerId));
 				await refreshConfiguredProviders(config);
 			} catch (err) {
+				logger.error({ err }, "failed to update channel settings");
 				json(res, 400, { error: err instanceof Error ? err.message : String(err) });
 				return;
 			}
@@ -3210,6 +3335,7 @@ const server = createServer(async (req, res) => {
 				}
 				config = saveConfig(paths.configPath, config);
 			} catch (err) {
+				logger.warn({ err }, "failed to update channel settings");
 				json(res, 400, { error: err instanceof Error ? err.message : String(err) });
 				return;
 			}
@@ -3266,15 +3392,21 @@ const server = createServer(async (req, res) => {
 			// Use atomic switch+prompt when a specific session is requested.
 			const requestedSessionId = typeof body.sessionId === "string" ? body.sessionId : null;
 			let output: string;
-			if (requestedSessionId) {
-				const sessionPath = sessionFileFromId(join(dataDir, "sessions"), requestedSessionId);
-				if (sessionPath && existsSync(sessionPath)) {
-					output = await runPromptInSession(sessionPath, prompt, images.length ? images : undefined);
+			try {
+				if (requestedSessionId) {
+					const sessionPath = sessionFileFromId(join(dataDir, "sessions"), requestedSessionId);
+					if (sessionPath && existsSync(sessionPath)) {
+						output = await runPromptInSession(sessionPath, prompt, images.length ? images : undefined);
+					} else {
+						output = await runPromptSerialized(prompt, images.length ? images : undefined);
+					}
 				} else {
 					output = await runPromptSerialized(prompt, images.length ? images : undefined);
 				}
-			} else {
-				output = await runPromptSerialized(prompt, images.length ? images : undefined);
+			} catch (err) {
+				logger.error({ err, sessionId: requestedSessionId }, "Non-streaming chat LLM call failed");
+				json(res, 500, { error: err instanceof Error ? err.message : "LLM API call failed" });
+				return;
 			}
 			recordCurrentSessionChannel("web", requestedSessionId || undefined, { setOriginIfEmpty: true });
 			maybeAutoGenerateTopic(requestedSessionId || getCurrentSessionId());
@@ -3371,6 +3503,10 @@ const server = createServer(async (req, res) => {
 							sseWrite({ type: "text_delta", delta: ev.delta });
 						} else if (ev.type === "thinking_delta") {
 							sseWrite({ type: "thinking_delta", delta: ev.delta });
+						} else if (ev.type === "error") {
+							const errorMsg = ev.error.errorMessage || `LLM API error (stopReason: ${ev.error.stopReason})`;
+							logger.error({ errorMessage: errorMsg, stopReason: ev.error.stopReason }, "LLM API stream error event");
+							sseWrite({ type: "error", message: errorMsg });
 						}
 						break;
 					}
@@ -3403,6 +3539,14 @@ const server = createServer(async (req, res) => {
 							isError: event.isError,
 						});
 						break;
+					case "auto_retry_start":
+						logger.warn({ attempt: event.attempt, maxAttempts: event.maxAttempts, delayMs: event.delayMs }, "LLM API call failed, auto-retrying...");
+						break;
+					case "auto_retry_end":
+						if (!event.success) {
+							logger.error({ finalError: event.finalError }, "LLM API auto-retry failed");
+						}
+						break;
 				}
 			};
 
@@ -3418,7 +3562,8 @@ const server = createServer(async (req, res) => {
 				// likely still failing (which would just block again).
 				if (!emittedError) maybeAutoGenerateTopic(capturedSessionId);
 			} catch (err) {
-				if (!aborted && !emittedError) {
+				logger.error({ err }, "SSE stream error");
+				if (!aborted) {
 					sseWrite({ type: "error", message: err instanceof Error ? err.message : "Unknown error" });
 				}
 			} finally {
@@ -3457,172 +3602,116 @@ const server = createServer(async (req, res) => {
 		// --- 404 ---
 		json(res, 404, { error: "Not found" });
 	} catch (err) {
-		console.error("[inno-server] error:", err);
+		logger.error({ err }, "unhandled error in HTTP handler");
 		json(res, 500, { error: "Internal server error" });
 	}
 });
 
 // ---------------------------------------------------------------------------
-// Start
+// Terminal WebSocket setup (the bindTerminalWs helper references the lazy
+// terminalManager, but the upgrade handler only fires AFTER the first successful
+// bootstrap — terminal WebSocket connections can't happen before then).
 // ---------------------------------------------------------------------------
 
-console.log("[inno-server] initializing agent session...");
-initSession(config, paths, channelRegistry, {
-	sandbox: parsed.options.sandbox,
-	extensionDeps: {
-		workspaceRegistry,
-		runRecordStore,
-		getCurrentSessionId,
-		recordChannelInteraction: (channel) => recordCurrentSessionChannel(channel as SessionChannel),
-	},
-})
-	.then(() => {
-		// Create dispatcher now that agent session is ready
-		const channelsDataDir = join(dataDir, "channels");
-		ensureDir(channelsDataDir);
-		dispatcher = new PersonalChannelDispatcher({
-			channelRegistry,
-			runPrompt: runPromptSerialized,
-			runPromptInSession,
-			createNewSession,
-			getCurrentSessionId,
-			recordSessionChannel: (ch, sid?) => recordCurrentSessionChannel(ch as SessionChannel, sid, { setOriginIfEmpty: true }),
-			maybeAutoGenerateTopic,
-			onSessionCreated: (sessionId, channel) => {
-				// Channel-originated sessions bind to a fixed per-channel workspace
-				// (they cannot prompt the user to choose one).
-				try {
-					const ws = workspaceRegistry.ensureChannelWorkspace(channel);
-					workspaceRegistry.bindSession(sessionId, ws.id);
-				} catch (err) {
-					console.warn(`[sessions] failed to bind channel session ${sessionId}:`, err instanceof Error ? err.message : err);
-				}
-			},
-			channelsDataDir,
-			sessionDir: join(dataDir, "sessions"),
-		});
-
-		// Start Feishu WebSocket if enabled
-		if (feishuChannel) {
-			feishuChannel.onMessage((msg) => dispatcher!.handle(feishuChannel!, msg));
-			feishuChannel.start();
-		}
-
-		// Start WeChat iLink if logged in
-		if (wechatChannel) {
-			wechatChannel.onMessage((msg) => dispatcher!.handle(wechatChannel!, msg));
-			wechatChannel.start();
-		}
-
-		// Start cron scheduler
-		const scheduler = new CronScheduler(jobStore, channelRegistry);
-		scheduler.start();
-
-		// --- WebSocket: terminal sessions ---
-		const wss = new WebSocketServer({ noServer: true });
-		server.on("upgrade", (req, socket, head) => {
-			const url = req.url ?? "";
-			const m = /^\/api\/terminal\/sessions\/([^/?]+)\/ws$/.exec(url.split("?")[0]);
-			if (!m) {
-				socket.destroy();
-				return;
-			}
-			const terminalId = decodeURIComponent(m[1]);
-			const ts = terminalManager.get(terminalId);
-			if (!ts) {
-				socket.destroy();
-				return;
-			}
-			wss.handleUpgrade(req, socket, head, (ws) => {
-				bindTerminalWs(ws, terminalId);
-			});
-		});
-
-		function send(ws: WebSocket, event: ServerTerminalEvent): void {
-			if (ws.readyState === ws.OPEN) {
-				ws.send(JSON.stringify(event));
-			}
-		}
-
-		function bindTerminalWs(ws: WebSocket, terminalId: string): void {
-			const ts = terminalManager.get(terminalId);
-			if (!ts) {
-				send(ws, { type: "error", message: "Terminal not found" });
-				ws.close();
-				return;
-			}
-
-			send(ws, { type: "ready", sessionId: ts.sessionId, cwd: ts.cwd, workspaceId: ts.workspaceId });
-
-			const offData = ts.pty.onData((chunk: string) => {
-				const { cleaned, finishedRun } = terminalManager.processOutput(ts, chunk);
-				if (cleaned) {
-					terminalManager.recordOutput(ts, cleaned);
-					send(ws, { type: "output", data: cleaned });
-				}
-				if (finishedRun) {
-					const run = terminalManager.finishActiveRun(ts, finishedRun.exitCode);
-					send(ws, { type: "exit", code: finishedRun.exitCode, runId: run?.id });
-				}
-			});
-			const offExit = ts.pty.onExit(({ exitCode, signal }) => {
-				const run = terminalManager.finishActiveRun(ts, exitCode, signal ? String(signal) : undefined);
-				send(ws, { type: "exit", code: exitCode, signal: signal ? String(signal) : undefined, runId: run?.id });
-				ws.close();
-			});
-
-			ws.on("message", (raw) => {
-				let event: ClientTerminalEvent;
-				try {
-					event = JSON.parse(raw.toString()) as ClientTerminalEvent;
-				} catch {
-					send(ws, { type: "error", message: "Invalid JSON" });
-					return;
-				}
-				switch (event.type) {
-					case "input":
-						if (typeof event.data === "string") ts.pty.write(event.data);
-						break;
-					case "resize":
-						if (typeof event.cols === "number" && typeof event.rows === "number") {
-							ts.pty.resize(event.cols, event.rows);
-						}
-						break;
-					case "run": {
-						if (typeof event.command !== "string" || !event.command.trim()) break;
-						if (event.command.length > 4096) {
-							send(ws, { type: "error", message: "Command too long" });
-							break;
-						}
-						const record = terminalManager.startRun(ts, event.command, event.sourceFile);
-						send(ws, { type: "run_started", runId: record.id, command: event.command });
-						break;
-					}
-					case "close":
-						ws.close();
-						break;
-				}
-			});
-
-			ws.on("close", () => {
-				offData();
-				offExit();
-				// Mark any in-flight run as unfinished but recorded.
-				terminalManager.finishActiveRun(ts, null);
-			});
-		}
-
-		server.listen(port, () => {
-			console.log(`[inno-server] listening on http://localhost:${port}`);
-			console.log(`[inno-server] config: ${paths.configPath}`);
-			console.log(`[inno-server] data: ${paths.dataDir}`);
-			console.log(`[inno-server] skills: ${paths.skillsDir}`);
-			console.log(`[inno-server] workspace: ${paths.workspaceDir}`);
-			console.log(`[inno-server] channels: ${channelRegistry.all().map((c) => c.name).join(", ") || "none"}`);
-			console.log(`[inno-server] jobs loaded: ${jobStore.list().length}`);
-		});
-	})
-	.catch((err) => {
-		console.error("[inno-server] failed to initialize:", err);
-		process.exit(1);
+const wss = new WebSocketServer({ noServer: true });
+server.on("upgrade", (req, socket, head) => {
+	const url = req.url ?? "";
+		if (!bootstrapped) { socket.destroy(); return; }
+	const m = /^\/api\/terminal\/sessions\/([^/?]+)\/ws$/.exec(url.split("?")[0]);
+	if (!m) {
+		socket.destroy();
+		return;
+	}
+	const terminalId = decodeURIComponent(m[1]);
+	const ts = terminalManager.get(terminalId);
+	if (!ts) {
+		socket.destroy();
+		return;
+	}
+	wss.handleUpgrade(req, socket, head, (ws) => {
+		bindTerminalWs(ws, terminalId);
 	});
+});
+
+function sendTerminal(ws: WebSocket, event: ServerTerminalEvent): void {
+	if (ws.readyState === ws.OPEN) {
+		ws.send(JSON.stringify(event));
+	}
+}
+
+function bindTerminalWs(ws: WebSocket, terminalId: string): void {
+	const ts = terminalManager.get(terminalId);
+	if (!ts) {
+		sendTerminal(ws, { type: "error", message: "Terminal not found" });
+		ws.close();
+		return;
+	}
+
+	sendTerminal(ws, { type: "ready", sessionId: ts.sessionId, cwd: ts.cwd, workspaceId: ts.workspaceId });
+
+	const offData = ts.pty.onData((chunk: string) => {
+		const { cleaned, finishedRun } = terminalManager.processOutput(ts, chunk);
+		if (cleaned) {
+			terminalManager.recordOutput(ts, cleaned);
+			sendTerminal(ws, { type: "output", data: cleaned });
+		}
+		if (finishedRun) {
+			const run = terminalManager.finishActiveRun(ts, finishedRun.exitCode);
+			sendTerminal(ws, { type: "exit", code: finishedRun.exitCode, runId: run?.id });
+		}
+	});
+	const offExit = ts.pty.onExit(({ exitCode, signal }) => {
+		const run = terminalManager.finishActiveRun(ts, exitCode, signal ? String(signal) : undefined);
+		sendTerminal(ws, { type: "exit", code: exitCode, signal: signal ? String(signal) : undefined, runId: run?.id });
+		ws.close();
+	});
+
+	ws.on("message", (raw) => {
+		let event: ClientTerminalEvent;
+		try {
+			event = JSON.parse(raw.toString()) as ClientTerminalEvent;
+		} catch (err) {
+			sendTerminal(ws, { type: "error", message: "Invalid JSON" });
+			return;
+		}
+		switch (event.type) {
+			case "input":
+				if (typeof event.data === "string") ts.pty.write(event.data);
+				break;
+			case "resize":
+				if (typeof event.cols === "number" && typeof event.rows === "number") {
+					ts.pty.resize(event.cols, event.rows);
+				}
+				break;
+			case "run": {
+				if (typeof event.command !== "string" || !event.command.trim()) break;
+				if (event.command.length > 4096) {
+					sendTerminal(ws, { type: "error", message: "Command too long" });
+					break;
+				}
+				const record = terminalManager.startRun(ts, event.command, event.sourceFile);
+				sendTerminal(ws, { type: "run_started", runId: record.id, command: event.command });
+				break;
+			}
+			case "close":
+				ws.close();
+				break;
+		}
+	});
+
+	ws.on("close", () => {
+		offData();
+		offExit();
+		terminalManager.finishActiveRun(ts, null);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Start listening immediately — /health and static files work right away.
+// All other endpoints call ensureBootstrapped() lazily on first request.
+// ---------------------------------------------------------------------------
+
+server.listen(port, () => {
+	logger.info(`[inno-server] listening on http://localhost:${port}`);
+	logger.info(`[inno-server] config: ${paths.configPath}`);
+});

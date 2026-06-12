@@ -9,6 +9,7 @@ import type { ModelRegistry } from "@earendil-works/pi-coding-agent";
 import { ensureDir, readText, writeText } from "../../storage/file-store.js";
 import type { ManifestEntry, WikiPageType } from "./types.js";
 import { parseFrontmatter, serializeFrontmatter } from "./wiki-maintainer.js";
+import { logger } from "../../logger.js";
 
 type LinkablePageType = Extract<WikiPageType, "entity" | "concept">;
 
@@ -173,7 +174,8 @@ async function extractLinkedItems(
 			.join("\n");
 		const extracted = parseLinkedItemsJson(text);
 		return extracted.length > 0 ? extracted : fallback;
-	} catch {
+	} catch (err) {
+		logger.warn({ err }, "LLM wiki link extraction failed, using fallback");
 		return fallback;
 	}
 }

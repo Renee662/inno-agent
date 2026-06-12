@@ -2,6 +2,7 @@ import type { JobStore } from "./job-store.js";
 import type { ChannelRegistry } from "../channels/channel.js";
 import { executeJob } from "./job-runner.js";
 import { isCronDue } from "./cron-utils.js";
+import { logger } from "../logger.js";
 
 /**
  * In-process cron scheduler.
@@ -25,7 +26,7 @@ export class CronScheduler {
 
 		// Then check every 60 seconds
 		this.interval = setInterval(() => this.tick(), 60_000);
-		console.log("[scheduler] started, checking jobs every 60s");
+		logger.info("[scheduler] started, checking jobs every 60s");
 	}
 
 	stop(): void {
@@ -45,18 +46,18 @@ export class CronScheduler {
 
 			if (isCronDue(job.cron, job.timezone, job.lastRunAt, now)) {
 				this.running.add(job.id);
-				console.log(`[scheduler] executing job: ${job.name} (${job.id})`);
+				logger.info({ jobId: job.id, jobName: job.name }, "scheduler executing job");
 
 				executeJob(job, this.jobStore, this.channelRegistry, "scheduled")
 					.then((result) => {
 						if (result.success) {
-							console.log(`[scheduler] job ${job.id} completed${result.pushedToChannel ? `, pushed to ${result.pushedToChannel}` : ""}`);
+							logger.info({ jobId: job.id, pushedToChannel: result.pushedToChannel }, "scheduler job completed");
 						} else {
-							console.error(`[scheduler] job ${job.id} failed: ${result.error}`);
+							logger.error({ jobId: job.id, error: result.error }, "scheduler job failed");
 						}
 					})
 					.catch((err) => {
-						console.error(`[scheduler] job ${job.id} error:`, err);
+						logger.error({ err, jobId: job.id }, "scheduler job error");
 					})
 					.finally(() => {
 						this.running.delete(job.id);

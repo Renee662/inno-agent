@@ -5,6 +5,7 @@ import type { RealtimeChatChannel, MessageHandler } from "../channel.js";
 import type { IncomingMessage, PushTarget, MessageAttachment } from "../types.js";
 import type { PersonalChannelConfig } from "../../config.js";
 import { FeishuAPI, type FeishuConfig } from "./feishu-api.js";
+import { logger } from "../../logger.js";
 
 const SUPPORTED_TYPES = new Set(["text", "image", "file", "post"]);
 
@@ -59,7 +60,7 @@ export class FeishuChannel implements RealtimeChatChannel {
 		});
 
 		this.wsClient.start({ eventDispatcher });
-		console.log("[feishu] WebSocket client started");
+		logger.info("[feishu] WebSocket client started");
 	}
 
 	private async parseEvent(data: Record<string, unknown>): Promise<IncomingMessage | null> {
@@ -145,7 +146,7 @@ export class FeishuChannel implements RealtimeChatChannel {
 				raw: data,
 			};
 		} catch (err) {
-			console.error("[feishu] parse error:", err);
+			logger.error({ err }, "Feishu message parse error");
 			return null;
 		}
 	}
@@ -210,7 +211,7 @@ export class FeishuChannel implements RealtimeChatChannel {
 				filePath,
 			};
 		} catch (err) {
-			console.error(`[feishu] download resource error (${fileKey}):`, err);
+			logger.error({ err, fileKey }, "Feishu download resource error");
 			return null;
 		}
 	}

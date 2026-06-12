@@ -4,6 +4,7 @@ import { FileSendNotSupportedError } from "../channel.js";
 import type { IncomingMessage, PushTarget } from "../types.js";
 import type { PersonalChannelConfig } from "../../config.js";
 import { ILinkClient, AuthExpiredError, type ILinkMessage } from "./ilink-client.js";
+import { logger } from "../../logger.js";
 
 export class WeChatChannel implements RealtimeChatChannel {
 	readonly name = "wechat";
@@ -50,12 +51,12 @@ export class WeChatChannel implements RealtimeChatChannel {
 
 	start(): void {
 		if (!this.client.isLoggedIn) {
-			console.log("[wechat] not logged in, skipping start");
+			logger.info("[wechat] not logged in, skipping start");
 			return;
 		}
 		if (this.running) return;
 		this.running = true;
-		console.log(`[wechat] starting message loop (bot_id=${this.client.botId})`);
+		logger.info({ botId: this.client.botId }, "[wechat] starting message loop");
 		void this.pollLoop();
 	}
 
@@ -80,11 +81,11 @@ export class WeChatChannel implements RealtimeChatChannel {
 				}
 			} catch (err) {
 				if (err instanceof AuthExpiredError) {
-					console.error("[wechat] auth expired, stopping poll loop");
+					logger.error({ err }, "WeChat auth expired, stopping poll loop");
 					this.running = false;
 					return;
 				}
-				console.error("[wechat] poll error:", err instanceof Error ? err.message : err);
+				logger.error({ err }, "WeChat poll error");
 				await new Promise((r) => setTimeout(r, 5000));
 			}
 		}

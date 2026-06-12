@@ -15,6 +15,7 @@
  *   before querying. ASCII words are kept whole and lowercased.
  */
 
+import { logger } from "../../logger.js";
 import { join } from "node:path";
 import { mkdirSync } from "node:fs";
 
@@ -152,7 +153,8 @@ export class L3Store {
 				DatabaseSync: new (path: string) => SqliteDatabase;
 			};
 			DatabaseSync = mod.DatabaseSync;
-		} catch {
+		} catch (err) {
+			logger.warn({ err }, "[L3] node:sqlite not available on this runtime");
 			// node:sqlite not available on this runtime → L3 disabled.
 			return null;
 		}
@@ -163,7 +165,7 @@ export class L3Store {
 			db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
 			return new L3Store(db);
 		} catch (err) {
-			console.warn(`[L3] failed to open sqlite store: ${err instanceof Error ? err.message : String(err)}`);
+			logger.warn({ err }, `[L3] failed to open sqlite store: ${err instanceof Error ? err.message : String(err)}`);
 			return null;
 		}
 	}
@@ -248,7 +250,7 @@ export class L3Store {
 				)
 				.all(match, limit);
 		} catch (err) {
-			console.warn(`[L3] search failed: ${err instanceof Error ? err.message : String(err)}`);
+			logger.warn({ err }, `[L3] search failed: ${err instanceof Error ? err.message : String(err)}`);
 			return [];
 		}
 		return rows.map((r) => ({
@@ -298,7 +300,8 @@ export class L3Store {
 	close(): void {
 		try {
 			this.db.close();
-		} catch {
+		} catch (err) {
+			logger.warn({ err }, "failed to close sqlite store (may already be closed)");
 			// already closed
 		}
 	}

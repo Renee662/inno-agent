@@ -86,6 +86,86 @@ export function workspaceFolderZipUrl(path: string, workspaceId?: string): strin
 	return `/api/workspace/download-folder${qs ? `?${qs}` : ""}`;
 }
 
+// ---- HTML resource inlining for srcdoc previews ----
+// Relative URLs in srcdoc iframes resolve against the parent page, not the
+// file's workspace location. We inline CSS/JS so the preview is self-contained.
+
+const MAX_INLINE_BYTES = 512 * 1024;
+
+function isRelUrl(url: string): boolean {
+  const t = url.trim();
+  if (!t) return false;
+  if (/^(https?:)?\/\//i.test(t)) return false;
+  if (t.startsWith("/")) return false;
+  if (/^(?:data|blob):/i.test(t)) return false;
+  return true;
+}
+
+function resolveRelPath(htmlFilePath: string, relativeRef: string): string {
+  const htmlDir = htmlFilePath.includes("/") ? htmlFilePath.split("/").slice(0, -1).join("/") : "";
+  const segs = htmlDir ? htmlDir.split("/").filter(Boolean) : [];
+  for (const seg of relativeRef.split("/")) {
+    if (seg === "." || seg === "") continue;
+    if (seg === "..") { segs.pop(); continue; }
+    segs.push(seg);
+  }
+  return segs.join("/");
+}
+
+export async function inlineWorkspaceHtml(html: string, filePath: string, wsId?: string): Promise<string> {
+  const fetches: Array<{ tag: string; path: string; type: "css" | "js"; attrs?: string }> = [];
+
+  // Collect <link rel="stylesheet" href="...">
+  const linkRe = /<link\b([^>]*)\/?>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = linkRe.exec(html)) !== null) {
+    const attrs = m[1];
+    if (!/\brel\s*=\s*["'][^"']*stylesheet[^"']*["']/i.test(attrs)) continue;
+    const hm = attrs.match(/\bhref\s*=\s*["\']([^"\']+)["\']/i);
+    if (!hm) continue;
+    if (!isRelUrl(hm[1])) continue;
+    const rp = resolveRelPath(filePath, hm[1]);
+    if (/\.(?:css|js|mjs)$/i.test(rp)) fetches.push({ tag: m[0], path: rp, type: "css" });
+  }
+
+  // Collect <script src="...">...</script>
+  const scrRe = /<script\b([^>]*)\bsrc\s*=\s*["']([^"']+)["']([^>]*)>\s*<\/script>/gi;
+  while ((m = scrRe.exec(html)) !== null) {
+    if (!isRelUrl(m[2])) continue;
+    const rp = resolveRelPath(filePath, m[2]);
+    if (/\.(?:js|mjs)$/i.test(rp)) fetches.push({ tag: m[0], path: rp, type: "js", attrs: (m[1] + ' ' + m[3]).replace(/\bsrc\s*=\s*["'][^"']*["']/gi, '').replace(/\s+/g, ' ').trim() });
+  }
+
+  if (fetches.length === 0) return html;
+
+  // Fetch all in parallel
+  const results = await Promise.all(
+    fetches.map(async (f) => {
+      try {
+        const file = await getWorkspaceFile(f.path, wsId);
+        if (file?.content && file.content.length > 0 && file.content.length <= MAX_INLINE_BYTES) {
+          return { ...f, content: file.content };
+        }
+      } catch { /* skip */ }
+      return { ...f, content: null };
+    })
+  );
+
+  // Replace tags
+  let result = html;
+  for (const r of results) {
+    if (r.content == null) continue;
+    if (r.type === "css") {
+      result = result.replace(r.tag, `<style>${r.content}</style>`);
+    } else {
+      const attrs = r.attrs;
+      const open = attrs ? `<script ${attrs}>` : "<script>";
+      result = result.replace(r.tag, `${open}${r.content}</script>`);
+    }
+  }
+  return result;
+}
+
 /** Trigger a browser download by clicking a transient anchor. */
 export function triggerDownload(url: string): void {
 	const a = document.createElement("a");

@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { InnoConfig } from "../config.js";
+import { logger } from "../logger.js";
 
 const INNO_MANAGED_MARKER = "__inno_managed";
 
@@ -58,7 +59,8 @@ export function syncProvidersForSubagents(config: InnoConfig): void {
 		try {
 			existing = JSON.parse(readFileSync(modelsPath, "utf-8")) as PiModelsJson;
 			if (!existing.providers) existing.providers = {};
-		} catch {
+		} catch (err) {
+			logger.warn({ err }, "Failed to parse existing models.json, starting fresh");
 			existing = { providers: {} };
 		}
 	}
@@ -87,7 +89,8 @@ export function syncProvidersForSubagents(config: InnoConfig): void {
 	if (existsSync(settingsPath)) {
 		try {
 			settings = JSON.parse(readFileSync(settingsPath, "utf-8")) as PiSettingsJson;
-		} catch {
+		} catch (err) {
+			logger.warn({ err }, "Failed to parse existing settings.json, starting fresh");
 			settings = {};
 		}
 	}
@@ -95,4 +98,7 @@ export function syncProvidersForSubagents(config: InnoConfig): void {
 	settings.defaultProvider = config.defaultProvider;
 	settings.defaultModel = config.defaultModel;
 	writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`, "utf-8");
+
+	const providerCount = Object.keys(existing.providers).length;
+	logger.info({ providerCount, agentDir }, "Subagent providers synced");
 }

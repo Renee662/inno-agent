@@ -15,6 +15,7 @@
  * cheap at personal scale.
  */
 
+import { logger } from "../../logger.js";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { L3Chunk, L3Store } from "./sqlite-store.js";
@@ -68,7 +69,8 @@ function extractMessages(filePath: string): ExtractedMessage[] {
 		let entry: Record<string, unknown>;
 		try {
 			entry = JSON.parse(line) as Record<string, unknown>;
-		} catch {
+		} catch (err) {
+			logger.warn({ err }, "failed to parse JSONL line in session file");
 			continue;
 		}
 		if (entry.type !== "message" || !entry.message || typeof entry.message !== "object") continue;
@@ -152,7 +154,8 @@ export function indexSession(store: L3Store, filePath: string): number {
 	let stat;
 	try {
 		stat = statSync(filePath);
-	} catch {
+	} catch (err) {
+		logger.warn({ err, filePath }, "failed to stat session file for indexing");
 		return 0;
 	}
 	if (!stat.isFile() || stat.size === 0) return 0;
@@ -166,7 +169,7 @@ export function indexSession(store: L3Store, filePath: string): number {
 	try {
 		messages = extractMessages(filePath);
 	} catch (err) {
-		console.warn(`[L3] failed to parse ${sessionId}: ${err instanceof Error ? err.message : String(err)}`);
+		logger.warn({ err }, `[L3] failed to parse ${sessionId}: ${err instanceof Error ? err.message : String(err)}`);
 		return 0;
 	}
 
@@ -186,7 +189,8 @@ export function indexAllSessions(store: L3Store, sessionDir: string): { sessions
 	let entries: string[];
 	try {
 		entries = readdirSync(sessionDir);
-	} catch {
+	} catch (err) {
+		logger.warn({ err, sessionDir }, "failed to read session directory for backfill");
 		return { sessions: 0, chunks: 0 };
 	}
 	let sessions = 0;

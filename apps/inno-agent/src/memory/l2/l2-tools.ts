@@ -20,6 +20,7 @@ import { summarizeContent } from "./summarizer.js";
 import { maintainLinkedWikiPages } from "./wiki-linker.js";
 import { readText } from "../../storage/file-store.js";
 import { parseDocument, DocumentParseError } from "./document-parser.js";
+import { logger } from "../../logger.js";
 
 /**
  * Create L2 Wiki memory tools for the Inno Agent.
@@ -72,6 +73,7 @@ export function createL2Tools(l2DataDir: string): ToolDefinition[] {
 				try {
 					parsed = await parseDocument(resolvedPath);
 				} catch (err) {
+					logger.warn({ err, filePath: resolvedPath }, "l2_archive: failed to parse document");
 					const msg = err instanceof DocumentParseError ? err.message : String(err);
 					return {
 						content: [{ type: "text" as const, text: `文件解析失败: ${msg}` }],

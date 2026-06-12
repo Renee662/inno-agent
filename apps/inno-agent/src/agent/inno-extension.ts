@@ -20,6 +20,7 @@ import { createDocumentTools } from "./document-tools.js";
 import { INNO_SYSTEM_PROMPT } from "./system-prompt.js";
 import { syncProvidersForSubagents } from "./provider-sync.js";
 import { questionBridge } from "./question-bridge.js";
+import { logger } from "../logger.js";
 import type { ChannelRegistry } from "../channels/channel.js";
 import type { ChannelName } from "../channels/types.js";
 import type { RuntimePaths } from "../runtime.js";
@@ -70,7 +71,8 @@ function resolveActiveWorkspaceDir(paths: RuntimePaths, deps?: InnoExtensionDeps
 				const dir = deps.workspaceRegistry.resolveWorkspaceDir(workspaceId);
 				if (dir) return dir;
 			}
-		} catch {
+		} catch (err) {
+			logger.warn({ err }, "failed to resolve active workspace dir, falling back to root");
 			// Fall through to the workspace root.
 		}
 	}
@@ -92,7 +94,8 @@ function buildWorkspaceContextSections(workspaceDir: string): string[] {
 			if (content) {
 				sections.push(`# 工作区上下文 (${WORKSPACE_AGENT_FILE})\n\n${content}`);
 			}
-		} catch {
+		} catch (err) {
+			logger.warn({ err }, "failed to read workspace agent.md");
 			// Ignore unreadable agent.md
 		}
 	}
@@ -107,7 +110,8 @@ function buildWorkspaceContextSections(workspaceDir: string): string[] {
 					sections.push(`# 本工作区私有技能${block}`);
 				}
 			}
-		} catch {
+		} catch (err) {
+			logger.warn({ err }, "failed to discover workspace skills");
 			// Ignore skill discovery failures
 		}
 	}
@@ -149,8 +153,9 @@ export function createInnoExtension(
 			if (!cfg.providers[event.model.provider]) return;
 			try {
 				configHolder.current = saveConfig(paths.configPath, setDefaultModel(cfg, event.model.provider, event.model.id));
-			} catch {
+			} catch (err) {
 				// The selected model may be a runtime-only model; leave persisted config unchanged.
+				logger.warn({ err, provider: event.model.provider, modelId: event.model.id }, "model_select: failed to persist default model to config");
 			}
 		});
 
@@ -243,8 +248,10 @@ export function createInnoExtension(
 						const recalled = await l3Memory.recall(event.prompt, currentSessionId || undefined);
 						const recallSection = formatRecallForPrompt(recalled);
 						if (recallSection) sections.push(recallSection);
-					} catch {
+					} catch(err) {
 						// best-effort — recall failures must not block the turn
+						logger.warn({err}, "L3 recall failed (non-fatal)");
+
 					}
 				}
 
@@ -272,8 +279,8 @@ export function createInnoExtension(
 								].filter(Boolean).join("\n"),
 							);
 						}
-					} catch {
-						// best-effort
+					} catch (err) {
+						logger.warn({ err }, "Failed to fetch run record (non-fatal)");
 					}
 				}
 
@@ -313,8 +320,9 @@ export function createInnoExtension(
 				const sessionFile = ctx.sessionManager.getSessionFile?.();
 				const sessionId = sessionFile ? sessionFile.split(/[\\/]/).pop() ?? "" : "";
 				if (sessionId) await l3Memory.indexById(sessionId);
-			} catch {
+			} catch (err) {
 				// best-effort — indexing must not affect the turn
+				logger.warn({ err }, "L3 turn_end indexing failed (non-fatal)");
 			}
 		});
 
@@ -331,7 +339,7 @@ export function createInnoExtension(
 					registerSubagentExtension(pi);
 				}
 			} catch (err) {
-				console.warn(`[inno] Failed to load pi-subagents: ${err instanceof Error ? err.message : String(err)}`);
+				logger.warn({ err }, "Failed to load pi-subagents extension");
 			}
 		}
 
@@ -418,7 +426,7 @@ export function createInnoExtension(
 				},
 			} as Parameters<typeof pi.registerTool>[0]);
 		} catch (err) {
-			console.warn(`[inno] Failed to register ask_user_question: ${err instanceof Error ? err.message : String(err)}`);
+			logger.warn({ err }, "Failed to register ask_user_question tool");
 		}
 	};
 }

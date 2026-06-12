@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { randomBytes } from "node:crypto";
+import { logger } from "../../logger.js";
 
 const ILINK_API = "https://ilinkai.weixin.qq.com";
 const VER = "2.1.10";
@@ -79,7 +80,8 @@ export class ILinkClient {
 			this.token = data.bot_token ?? "";
 			this.botId = data.ilink_bot_id ?? "";
 			this.updatesBuf = data.updates_buf ?? "";
-		} catch {
+		} catch (err) {
+			logger.warn({ err }, "failed to load wechat token file, starting fresh");
 			// ignore corrupt file
 		}
 	}
@@ -131,7 +133,7 @@ export class ILinkClient {
 		});
 		if (!resp.ok) throw new Error(`getQrCode HTTP ${resp.status}`);
 		const body = await resp.json() as Record<string, unknown>;
-		console.log(`[wechat] getQrCode raw keys: ${Object.keys(body).join(", ")}`);
+		logger.info(`[wechat] getQrCode raw keys: ${Object.keys(body).join(", ")}`);
 		// iLink may nest the fields directly or under a wrapper — handle both
 		const qrcode = (body.qrcode ?? "") as string;
 		const qrcode_img_content = (body.qrcode_img_content ?? "") as string;
@@ -152,7 +154,7 @@ export class ILinkClient {
 		this.botId = status.ilink_bot_id ?? "";
 		this.updatesBuf = "";
 		this.save({ login_time: new Date().toISOString() });
-		console.log(`[wechat] QR login confirmed, bot_id=${this.botId}`);
+		logger.info({ botId: this.botId }, "[wechat] QR login confirmed");
 	}
 
 	async getUpdates(timeout = 30): Promise<ILinkMessage[]> {
@@ -180,7 +182,7 @@ export class ILinkClient {
 				this.save();
 				throw new AuthExpiredError(String(resp.errmsg ?? ""));
 			}
-			console.warn(`[wechat] getUpdates errcode=${errcode}: ${resp.errmsg ?? ""}`);
+			logger.warn({ errcode, errmsg: resp.errmsg }, "[wechat] getUpdates error");
 			return [];
 		}
 

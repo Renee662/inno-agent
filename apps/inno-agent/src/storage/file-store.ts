@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync, appendFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { logger } from "../logger.js";
 
 /**
  * Ensure a directory exists, creating it recursively if needed.
@@ -19,7 +20,7 @@ export function readJson<T>(filePath: string, defaultValue: T): T {
 	try {
 		return JSON.parse(raw) as T;
 	} catch (err) {
-		console.warn(`[file-store] Failed to parse JSON ${filePath}, falling back to default:`, err);
+		logger.warn({ err }, `failed to parse JSON ${filePath}`);
 		return defaultValue;
 	}
 }
@@ -56,7 +57,7 @@ export function readJsonl<T>(filePath: string): T[] {
 		try {
 			records.push(JSON.parse(line) as T);
 		} catch (err) {
-			console.warn(`[file-store] Skipping malformed JSONL line in ${filePath}:`, err);
+			logger.warn({ err }, `skipping malformed JSONL line in ${filePath}`);
 		}
 	}
 	return records;

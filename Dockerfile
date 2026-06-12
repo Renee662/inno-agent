@@ -1,5 +1,5 @@
 # Stage 1: Build — compile TypeScript backend + Vite frontend
-FROM node:22-bookworm-slim AS build
+FROM crpi-a4e25wq5oddt3z3b.cn-shanghai.personal.cr.aliyuncs.com/educlaw/inno-agent-base:v0.1 AS build
 WORKDIR /app
 
 # Install build tools for native modules (node-pty)
@@ -26,8 +26,10 @@ RUN npm run build
 RUN npm prune --production
 
 # Stage 2: Production runtime — web UI mode
-FROM node:22-bookworm-slim AS runtime
+FROM crpi-a4e25wq5oddt3z3b.cn-shanghai.personal.cr.aliyuncs.com/educlaw/inno-agent-base:v0.1 AS runtime
 WORKDIR /app
+
+RUN apt-get update && apt-get install -y unzip && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production \
     INNO_HOME=/var/lib/inno-agent \
@@ -44,8 +46,8 @@ COPY --from=build /app/apps/inno-agent/package.json ./apps/inno-agent/
 COPY --from=build /app/apps/inno-agent/dist ./apps/inno-agent/dist
 COPY --from=build /app/apps/inno-agent/web/dist ./apps/inno-agent/web/dist
 
-COPY config.example.json /etc/inno-agent/config.json
-RUN mkdir -p /var/lib/inno-agent/data /var/lib/inno-agent/skills /srv/inno-workspace
+#COPY config.example.json /etc/inno-agent/config.json
+#RUN mkdir -p /var/lib/inno-agent/data /var/lib/inno-agent/skills /srv/inno-workspace
 
 EXPOSE 3000
 
