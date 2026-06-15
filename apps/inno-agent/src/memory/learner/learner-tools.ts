@@ -6,6 +6,7 @@ import { recordEventAndUpdateProfile } from "./profile-store.js";
 import { buildContextPack } from "./context-pack.js";
 import { patchProfile, updateProfile } from "./profile-updater.js";
 import { createLearningEvent } from "./types.js";
+import { logger } from "../../logger.js";
 
 // ============================================================================
 // TypeBox Schemas for complex types
@@ -128,13 +129,14 @@ export function createLearnerTools(
 			),
 		}),
 		async execute(_toolCallId, params) {
-			if (isEnabled && !isEnabled()) return disabledResult();
-			const event = createLearningEvent(
-				learnerId,
-				params.event_type,
-				params.context,
-				params.payload as Record<string, unknown>,
-				params.derived_signals,
+			try {
+				if (isEnabled && !isEnabled()) return disabledResult();
+				const event = createLearningEvent(
+					learnerId,
+					params.event_type,
+					params.context,
+					params.payload as Record<string, unknown>,
+					params.derived_signals,
 				);
 				const profile = recordEventAndUpdateProfile(dataDir, event);
 				return {
@@ -146,7 +148,11 @@ export function createLearnerTools(
 					],
 					details: { event_id: event.event_id, profile_version: profile.version },
 				};
-			},
+			} catch (err) {
+				logger.warn({ err, params }, "record_learning_event tool failed");
+				throw err;
+			}
+		},
 		});
 
 	const patchLearnerProfileTool = defineTool({
@@ -171,17 +177,22 @@ export function createLearnerTools(
 			profile_summary_append: Type.Optional(Type.String({ description: "One concise sentence to append to profile summary" })),
 		}),
 		async execute(_toolCallId, params) {
-			if (isEnabled && !isEnabled()) return disabledResult();
-			const updated = patchProfile(dataDir, params);
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: `学习者画像已局部更新至版本 ${updated.version}`,
-					},
-				],
-				details: { version: updated.version },
-			};
+			try {
+				if (isEnabled && !isEnabled()) return disabledResult();
+				const updated = patchProfile(dataDir, params);
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: `学习者画像已局部更新至版本 ${updated.version}`,
+						},
+					],
+					details: { version: updated.version },
+				};
+			} catch (err) {
+				logger.warn({ err, params }, "patch_learner_profile tool failed");
+				throw err;
+			}
 		},
 	});
 
@@ -198,17 +209,22 @@ export function createLearnerTools(
 			profile_summary: Type.Optional(Type.String({ description: "Updated profile summary text" })),
 		}),
 		async execute(_toolCallId, params) {
-			if (isEnabled && !isEnabled()) return disabledResult();
-			const updated = updateProfile(dataDir, params);
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: `学习者画像已更新至版本 ${updated.version}`,
-					},
-				],
-				details: { version: updated.version },
-			};
+			try {
+				if (isEnabled && !isEnabled()) return disabledResult();
+				const updated = updateProfile(dataDir, params);
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: `学习者画像已更新至版本 ${updated.version}`,
+						},
+					],
+					details: { version: updated.version },
+				};
+			} catch (err) {
+				logger.warn({ err, params }, "update_learner_profile tool failed");
+				throw err;
+			}
 		},
 	});
 
