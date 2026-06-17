@@ -3617,7 +3617,7 @@ const server = createServer(async (req, res) => {
 						});
 						break;
 					case "auto_retry_start":
-						logger.warn({ attempt: event.attempt, maxAttempts: event.maxAttempts, delayMs: event.delayMs, elapsedMs: Date.now() - promptStartTime }, "LLM API call failed, auto-retrying...");
+						logger.warn({ attempt: event.attempt, maxAttempts: event.maxAttempts, delayMs: event.delayMs, errorMessage: event.errorMessage, elapsedMs: Date.now() - promptStartTime }, "LLM API call failed, auto-retrying...");
 						break;
 					case "auto_retry_end":
 						if (!event.success) {

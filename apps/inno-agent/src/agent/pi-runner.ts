@@ -587,7 +587,7 @@ export async function runPrompt(prompt: string, images?: ImageContent[]): Promis
 				logger.error({ errorMessage: streamError, stopReason: ev.error.stopReason, elapsedMs: Date.now() - promptStartTime }, "LLM API stream error in runPrompt");
 			}
 		} else if (event.type === "auto_retry_start") {
-			logger.warn({ attempt: event.attempt, maxAttempts: event.maxAttempts, delayMs: event.delayMs, elapsedMs: Date.now() - promptStartTime }, "LLM API call failed, auto-retrying...");
+			logger.warn({ attempt: event.attempt, maxAttempts: event.maxAttempts, delayMs: event.delayMs, errorMessage: event.errorMessage, elapsedMs: Date.now() - promptStartTime }, "LLM API call failed, auto-retrying...");
 		} else if (event.type === "auto_retry_end") {
 			if (!event.success) {
 				logger.error({ finalError: event.finalError, elapsedMs: Date.now() - promptStartTime }, "LLM API auto-retry failed");
@@ -728,7 +728,7 @@ export function runPromptStreaming(
 					logger.error({ errorMessage: streamError, stopReason: ev.error.stopReason, elapsedMs: Date.now() - promptStartTime }, "LLM API stream error in runPromptStreaming");
 				}
 			} else if (event.type === "auto_retry_start") {
-				logger.warn({ attempt: event.attempt, maxAttempts: event.maxAttempts, delayMs: event.delayMs, elapsedMs: Date.now() - promptStartTime }, "LLM API call failed, auto-retrying...");
+				logger.warn({ attempt: event.attempt, maxAttempts: event.maxAttempts, delayMs: event.delayMs, errorMessage: event.errorMessage, elapsedMs: Date.now() - promptStartTime }, "LLM API call failed, auto-retrying...");
 			} else if (event.type === "auto_retry_end") {
 				if (!event.success) {
 					logger.error({ finalError: event.finalError, elapsedMs: Date.now() - promptStartTime }, "LLM API auto-retry failed");
@@ -779,7 +779,7 @@ export function runPromptStreamingInSession(
 					logger.error({ errorMessage: streamError, stopReason: ev.error.stopReason, sessionPath, elapsedMs: Date.now() - promptStartTime }, "LLM API stream error in runPromptStreamingInSession");
 				}
 			} else if (event.type === "auto_retry_start") {
-				logger.warn({ attempt: event.attempt, maxAttempts: event.maxAttempts, delayMs: event.delayMs, elapsedMs: Date.now() - promptStartTime }, "LLM API call failed, auto-retrying...");
+				logger.warn({ attempt: event.attempt, maxAttempts: event.maxAttempts, delayMs: event.delayMs, errorMessage: event.errorMessage, elapsedMs: Date.now() - promptStartTime }, "LLM API call failed, auto-retrying...");
 			} else if (event.type === "auto_retry_end") {
 				if (!event.success) {
 					logger.error({ finalError: event.finalError, elapsedMs: Date.now() - promptStartTime }, "LLM API auto-retry failed");
