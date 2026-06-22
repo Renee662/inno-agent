@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
 import { loadConfig, saveConfig, setDefaultModel, upsertProvider, deleteProvider, deleteModel, normalizeContentHubConfig, type InnoConfig, type InnoContentHubConfig, type InnoModelConfig, type InnoProviderConfig } from "./config.js";
+import { installFetchLogger } from "./utils/fetch-logger.js";
 import { ensureDir, readJson, readText, writeJson, writeText } from "./storage/file-store.js";
 import {
 	createNewSession,
@@ -58,7 +59,12 @@ import { WebSocketServer, type WebSocket } from "ws";
 // Bootstrap
 // ---------------------------------------------------------------------------
 
-setGlobalDispatcher(new EnvHttpProxyAgent({ bodyTimeout: 0, headersTimeout: 0 }));
+// bodyTimeout: 15 min safety net for LLM provider requests. Provider-level
+// timeout (retry.provider.timeoutMs, default 10 min) should fire first; this
+// ensures a hung connection can't live longer than 15 minutes even if the
+// provider timeout fails to abort.
+setGlobalDispatcher(new EnvHttpProxyAgent({ bodyTimeout: 900_000, headersTimeout: 0 }));
+installFetchLogger();
 
 const parsed = parseRuntimeArgs(process.argv.slice(2));
 const paths = resolveRuntimePaths(parsed.options);
@@ -3542,6 +3548,7 @@ const server = createServer(async (req, res) => {
 			// don't forward that, runPromptStreaming resolves with empty text and
 			// the UI shows nothing. So we detect it here and emit an error event.
 			let emittedError = false;
+			let promptStartTime = 0;
 			const onEvent = (event: import("@earendil-works/pi-coding-agent").AgentSessionEvent) => {
 				if (aborted) return;
 				switch (event.type) {
@@ -3553,7 +3560,7 @@ const server = createServer(async (req, res) => {
 							sseWrite({ type: "thinking_delta", delta: ev.delta });
 						} else if (ev.type === "error") {
 							const errorMsg = ev.error.errorMessage || `LLM API error (stopReason: ${ev.error.stopReason})`;
-							logger.error({ errorMessage: errorMsg, stopReason: ev.error.stopReason }, "LLM API stream error event");
+							logger.error({ errorMessage: errorMsg, stopReason: ev.error.stopReason, elapsedMs: Date.now() - promptStartTime }, "LLM API stream error event");
 							sseWrite({ type: "error", message: errorMsg });
 						}
 						break;
@@ -3566,11 +3573,17 @@ const server = createServer(async (req, res) => {
 						) {
 							emittedError = true;
 							const detail = (msg as { errorMessage?: string }).errorMessage;
-							sseWrite({ type: "error", message: detail || "The model request failed." });
+							const errorMsg = detail || "The model request failed.";
+							logger.error({ stopReason: "error", errorMessage: errorMsg, message: msg, elapsedMs: Date.now() - promptStartTime }, "Model request failed (message_end stopReason=error)");
+							sseWrite({ type: "error", message: errorMsg });
 						}
 						break;
 					}
 					case "tool_execution_start":
+						logger.info(
+							{ toolName: event.toolName, toolCallId: event.toolCallId },
+							"tool call started: %s", event.toolName,
+						);
 						sseWrite({
 							type: "tool_start",
 							toolCallId: event.toolCallId,
@@ -3579,6 +3592,22 @@ const server = createServer(async (req, res) => {
 						});
 						break;
 					case "tool_execution_end":
+						if (event.isError) {
+							const errText = Array.isArray(event.result?.content)
+								? event.result.content.map((c: { text?: string }) => c.text ?? "").join(" ").slice(0, 500)
+								: String(event.result?.content ?? "").slice(0, 500);
+							logger.warn(
+								{ toolName: event.toolName, toolCallId: event.toolCallId, result: event.result },
+								"tool call failed: %s — %s",
+								event.toolName,
+								errText || "(no error text)",
+							);
+						} else {
+							logger.info(
+								{ toolName: event.toolName, toolCallId: event.toolCallId },
+								"tool call completed: %s", event.toolName,
+							);
+						}
 						sseWrite({
 							type: "tool_end",
 							toolCallId: event.toolCallId,
@@ -3588,16 +3617,20 @@ const server = createServer(async (req, res) => {
 						});
 						break;
 					case "auto_retry_start":
-						logger.warn({ attempt: event.attempt, maxAttempts: event.maxAttempts, delayMs: event.delayMs }, "LLM API call failed, auto-retrying...");
+						logger.warn({ attempt: event.attempt, maxAttempts: event.maxAttempts, delayMs: event.delayMs, errorMessage: event.errorMessage, elapsedMs: Date.now() - promptStartTime }, "LLM API call failed, auto-retrying...");
 						break;
 					case "auto_retry_end":
 						if (!event.success) {
-							logger.error({ finalError: event.finalError }, "LLM API auto-retry failed");
+							logger.error({ finalError: event.finalError, elapsedMs: Date.now() - promptStartTime }, "LLM API auto-retry failed");
 						}
+						break;
+					default:
+						logger.info({ eventType: (event as { type?: string }).type }, "unhandled SSE event type: %s", (event as { type?: string }).type);
 						break;
 				}
 			};
 
+			promptStartTime = Date.now();
 			try {
 				// Use atomic switch+stream when a specific session is requested,
 				// preventing race conditions with channel session switches.

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
+import { installFetchLogger } from "./utils/fetch-logger.js";
 import { main, type ExtensionFactory } from "@earendil-works/pi-coding-agent";
 import { loadConfig } from "./config.js";
 import { createInnoExtension, type ConfigHolder } from "./agent/inno-extension.js";
@@ -12,7 +13,12 @@ import { logger } from "./logger.js";
 process.title = "inno";
 
 // Disable undici timeouts for long streaming responses
-setGlobalDispatcher(new EnvHttpProxyAgent({ bodyTimeout: 0, headersTimeout: 0 }));
+// bodyTimeout: 15 min safety net for LLM provider requests. Provider-level
+// timeout (retry.provider.timeoutMs, default 10 min) should fire first; this
+// ensures a hung connection can't live longer than 15 minutes even if the
+// provider timeout fails to abort.
+setGlobalDispatcher(new EnvHttpProxyAgent({ bodyTimeout: 900_000, headersTimeout: 0 }));
+installFetchLogger();
 
 const parsed = parseRuntimeArgs(process.argv.slice(2));
 const paths = resolveRuntimePaths(parsed.options);
