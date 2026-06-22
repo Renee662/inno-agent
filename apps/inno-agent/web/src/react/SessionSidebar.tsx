@@ -62,13 +62,13 @@ function channelLabel(channel: SessionChannel): string {
 
 function channelClass(channel: SessionChannel): string {
 	const classes: Record<string, string> = {
-		cli: "bg-blue-50 text-blue-600 ring-1 ring-blue-200/60",
-		web: "bg-slate-100 text-slate-700 ring-1 ring-slate-200/80",
+		cli: "bg-[var(--inno-accent-soft)] text-[var(--inno-accent)] ring-1 ring-blue-200/60",
+		web: "bg-[var(--inno-surface-muted)] text-[var(--inno-text)] ring-1 ring-slate-200/80",
 		feishu: "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60",
 		scheduler: "bg-amber-50 text-amber-600 ring-1 ring-amber-200/60",
 		qq: "bg-cyan-50 text-cyan-600 ring-1 ring-cyan-200/60",
 		wechat: "bg-lime-50 text-lime-600 ring-1 ring-lime-200/60",
-		unknown: "bg-slate-50 text-slate-400 ring-1 ring-slate-200/60",
+		unknown: "bg-[var(--inno-surface-muted)] text-[var(--inno-text-subtle)] ring-1 ring-slate-200/60",
 	};
 	return classes[channel] ?? classes.unknown;
 }
@@ -80,13 +80,13 @@ function channelClass(channel: SessionChannel): string {
  */
 function channelInteractionClass(channel: SessionChannel): string {
 	const classes: Record<string, string> = {
-		cli: "bg-transparent text-blue-500 ring-1 ring-blue-300/70",
-		web: "bg-transparent text-slate-500 ring-1 ring-slate-300/70",
+		cli: "bg-transparent text-[var(--inno-accent)] ring-1 ring-blue-300/70",
+		web: "bg-transparent text-[var(--inno-text-muted)] ring-1 ring-slate-300/70",
 		feishu: "bg-transparent text-emerald-500 ring-1 ring-emerald-300/70",
 		scheduler: "bg-transparent text-amber-500 ring-1 ring-amber-300/70",
 		qq: "bg-transparent text-cyan-500 ring-1 ring-cyan-300/70",
 		wechat: "bg-transparent text-lime-500 ring-1 ring-lime-300/70",
-		unknown: "bg-transparent text-slate-400 ring-1 ring-slate-200/70",
+		unknown: "bg-transparent text-[var(--inno-text-subtle)] ring-1 ring-slate-200/70",
 	};
 	return classes[channel] ?? classes.unknown;
 }
@@ -106,17 +106,17 @@ function orderedSessionChannels(session: SessionMeta): Array<{ channel: SessionC
 }
 
 function channelFilterClass(channel: SessionChannel | null, active: boolean): string {
-	if (!active) return "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50 hover:text-slate-700 hover:ring-slate-300";
-	if (!channel) return "bg-slate-800 text-white ring-1 ring-slate-800";
+	if (!active) return "bg-[var(--inno-surface)] text-[var(--inno-text-muted)] ring-1 ring-slate-200 hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)] hover:ring-slate-300";
+	if (!channel) return "inno-primary-button ring-1 ring-[var(--inno-accent)]";
 	const map: Record<string, string> = {
-		cli: "bg-blue-600 text-white ring-1 ring-blue-600",
-		web: "bg-slate-900 text-white ring-1 ring-slate-900",
-		feishu: "bg-emerald-600 text-white ring-1 ring-emerald-600",
-		scheduler: "bg-amber-600 text-white ring-1 ring-amber-600",
-		qq: "bg-cyan-600 text-white ring-1 ring-cyan-600",
-		wechat: "bg-lime-600 text-white ring-1 ring-lime-600",
+		cli: "bg-[var(--inno-accent)] text-white ring-1 ring-blue-600 hover:bg-[var(--inno-accent)] hover:text-white",
+		web: "inno-primary-button ring-1 ring-[var(--inno-accent)]",
+		feishu: "bg-emerald-600 text-white ring-1 ring-emerald-600 hover:bg-emerald-600 hover:text-white",
+		scheduler: "bg-amber-600 text-white ring-1 ring-amber-600 hover:bg-amber-600 hover:text-white",
+		qq: "bg-cyan-600 text-white ring-1 ring-cyan-600 hover:bg-cyan-600 hover:text-white",
+		wechat: "bg-lime-600 text-white ring-1 ring-lime-600 hover:bg-lime-600 hover:text-white",
 	};
-	return map[channel] ?? "bg-slate-700 text-white ring-1 ring-slate-700";
+	return map[channel] ?? "inno-primary-button ring-1 ring-[var(--inno-accent)]";
 }
 
 /* ── Workspace group definition ── */
@@ -163,9 +163,9 @@ function GroupHeader({
 	onDelete: () => void;
 }) {
 	return (
-		<div className={`group/wsh sticky top-0 z-10 flex w-full items-center gap-1.5 px-2 py-1.5 ${active ? "bg-slate-100" : "bg-[var(--inno-sidebar-bg)]"}`}>
+		<div className={`group/wsh sticky top-0 z-10 flex w-full items-center gap-1.5 px-2 py-1.5 ${active ? "bg-[var(--inno-surface-muted)]" : "bg-[var(--inno-sidebar-bg)]"}`}>
 			<button
-				className="shrink-0 text-slate-400 transition-colors hover:text-slate-600"
+				className="shrink-0 text-[var(--inno-text-subtle)] transition-colors hover:text-[var(--inno-text-muted)]"
 				title={collapsed ? "展开" : "折叠"}
 				onClick={onToggle}
 			>
@@ -175,14 +175,14 @@ function GroupHeader({
 				/>
 			</button>
 			<button
-				className="inno-sidebar-meta flex min-w-0 flex-1 items-center gap-1.5 font-semibold uppercase text-slate-400 transition-colors hover:text-slate-600"
+				className="inno-sidebar-meta flex min-w-0 flex-1 items-center gap-1.5 font-semibold uppercase text-[var(--inno-text-subtle)] transition-colors hover:text-[var(--inno-text-muted)]"
 				title={group.canCreate ? "加载此工作区到预览面板" : undefined}
 				onClick={onSelect}
 			>
-				<FolderKanban size={12} className="shrink-0 text-slate-400" />
+				<FolderKanban size={12} className="shrink-0 text-[var(--inno-text-subtle)]" />
 				{editing ? (
 					<input
-						className="min-w-0 flex-1 rounded border border-blue-300 bg-white px-1 py-0.5 text-[11px] normal-case text-slate-800 outline-none focus:ring-1 focus:ring-blue-200"
+						className="min-w-0 flex-1 rounded border border-blue-300 bg-[var(--inno-surface)] px-1 py-0.5 text-[11px] normal-case text-[var(--inno-text)] outline-none focus:ring-1 focus:ring-blue-200"
 						value={editingName}
 						autoFocus
 						onClick={(e) => { e.stopPropagation(); }}
@@ -195,14 +195,14 @@ function GroupHeader({
 						}}
 					/>
 				) : (
-					<span className="min-w-0 truncate normal-case text-slate-500">{group.name}</span>
+					<span className="min-w-0 truncate normal-case text-[var(--inno-text-muted)]">{group.name}</span>
 				)}
 			</button>
 			{!editing ? (
 				<div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/wsh:opacity-100">
 					{group.canCreate ? (
 						<button
-							className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+							className="rounded p-0.5 text-[var(--inno-text-subtle)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]"
 							title="在此工作区新建对话"
 							onClick={(e) => { e.stopPropagation(); onNewChat(); }}
 						>
@@ -212,14 +212,14 @@ function GroupHeader({
 					{group.manageable ? (
 						<>
 							<button
-								className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+								className="rounded p-0.5 text-[var(--inno-text-subtle)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]"
 								title="重命名工作区"
 								onClick={(e) => { e.stopPropagation(); onStartEdit(); }}
 							>
 								<Pencil size={11} />
 							</button>
 							<button
-								className="rounded p-0.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+								className="rounded p-0.5 text-[var(--inno-text-subtle)] hover:bg-red-50 hover:text-red-600"
 								title="删除工作区"
 								onClick={(e) => { e.stopPropagation(); onDelete(); }}
 							>
@@ -229,7 +229,7 @@ function GroupHeader({
 					) : null}
 				</div>
 			) : null}
-			<span className="inno-sidebar-meta rounded-full bg-slate-200 px-1.5 py-0 font-medium text-slate-500 tabular-nums">
+			<span className="inno-sidebar-meta rounded-full bg-slate-200 px-1.5 py-0 font-medium text-[var(--inno-text-muted)] tabular-nums">
 				{group.sessions.length}
 			</span>
 		</div>
@@ -273,8 +273,8 @@ function SessionCard({
 		<div
 			className={`group/card relative mb-1 w-full cursor-pointer rounded-lg border px-2.5 py-2 text-left transition-all duration-150 ${
 				active
-					? "border-slate-200 bg-slate-100 shadow-sm"
-					: "border-transparent hover:border-slate-200 hover:bg-white"
+					? "border-[var(--inno-border)] bg-[var(--inno-surface-muted)] shadow-sm"
+					: "border-transparent hover:border-[var(--inno-border)] hover:bg-[var(--inno-surface)]"
 			}`}
 			role="button"
 			tabIndex={0}
@@ -290,7 +290,7 @@ function SessionCard({
 			<div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
 				{editing ? (
 					<input
-						className="inno-sidebar-title min-w-0 flex-1 rounded border border-blue-300 bg-white px-1.5 py-0.5 outline-none focus:ring-2 focus:ring-blue-200"
+						className="inno-sidebar-title min-w-0 flex-1 rounded border border-blue-300 bg-[var(--inno-surface)] px-1.5 py-0.5 outline-none focus:ring-2 focus:ring-blue-200"
 						value={editingName}
 						autoFocus
 						onClick={(e) => e.stopPropagation()}
@@ -303,16 +303,16 @@ function SessionCard({
 						}}
 					/>
 				) : (
-					<div className="inno-sidebar-title min-w-0 truncate font-medium text-slate-800 transition-colors group-hover/card:text-slate-950">
+					<div className="inno-sidebar-title min-w-0 truncate font-medium text-[var(--inno-text)] transition-colors group-hover/card:text-[var(--inno-text)]">
 						{session.name}
 					</div>
 				)}
-				<span className="inno-sidebar-meta shrink-0 pt-0.5 tabular-nums text-slate-400">{formatTime(session.updatedAt)}</span>
+				<span className="inno-sidebar-meta shrink-0 pt-0.5 tabular-nums text-[var(--inno-text-subtle)]">{formatTime(session.updatedAt)}</span>
 			</div>
 
 			{/* Preview */}
 			{session.preview && session.preview !== session.name ? (
-				<div className="inno-sidebar-meta mt-0.5 truncate text-slate-400">{session.preview}</div>
+				<div className="inno-sidebar-meta mt-0.5 truncate text-[var(--inno-text-subtle)]">{session.preview}</div>
 			) : null}
 
 			{/* Bottom row: channels + actions */}
@@ -333,7 +333,7 @@ function SessionCard({
 						<span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
 					) : null}
 					<button
-						className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40"
+						className="rounded p-0.5 text-[var(--inno-text-subtle)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)] disabled:opacity-40"
 						title="AI generate topic"
 						disabled={generatingId === session.id}
 						onClick={(e) => { e.stopPropagation(); onGenerate(); }}
@@ -345,27 +345,27 @@ function SessionCard({
 						)}
 					</button>
 					<button
-						className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+						className="rounded p-0.5 text-[var(--inno-text-subtle)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]"
 						title="Rename"
 						onClick={(e) => { e.stopPropagation(); onStartEdit(); }}
 					>
 						<Pencil size={12} />
 					</button>
 					<button
-						className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+						className="rounded p-0.5 text-[var(--inno-text-subtle)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]"
 						title={session.archived ? "Unarchive" : "Archive"}
 						onClick={(e) => { e.stopPropagation(); onArchive(); }}
 					>
 						{session.archived ? <ArchiveRestore size={12} /> : <Archive size={12} />}
 					</button>
 					<button
-						className="rounded p-0.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+						className="rounded p-0.5 text-[var(--inno-text-subtle)] hover:bg-red-50 hover:text-red-600"
 						title="Delete"
 						onClick={(e) => { e.stopPropagation(); onDelete(); }}
 					>
 						<Trash2 size={12} />
 					</button>
-					<span className="inno-sidebar-meta ml-0.5 tabular-nums text-slate-400">{session.messageCount}</span>
+					<span className="inno-sidebar-meta ml-0.5 tabular-nums text-[var(--inno-text-subtle)]">{session.messageCount}</span>
 				</div>
 			</div>
 		</div>
@@ -607,7 +607,7 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 		return (
 			<aside className="relative h-full w-0 overflow-visible">
 				<button
-					className="absolute left-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/90 hover:text-slate-700 hover:shadow-sm"
+					className="absolute left-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-lg text-[var(--inno-text-subtle)] transition-colors hover:bg-white/90 hover:text-[var(--inno-text)] hover:shadow-sm"
 					title="Expand"
 					onClick={() => appStore.setSidebarCollapsed(false)}
 				>
@@ -641,25 +641,25 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 								className="h-7 w-7"
 							>
 								<span
-									className="absolute inset-0 flex items-center justify-center rounded-lg border border-slate-200 bg-white text-[10px] font-semibold text-slate-800 shadow-sm"
+									className="absolute inset-0 flex items-center justify-center rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)] text-[10px] font-semibold text-[var(--inno-text)] shadow-sm"
 									style={{ backfaceVisibility: "hidden" }}
 								>
 									IA
 								</span>
 								<span
-									className="absolute inset-0 flex items-center justify-center rounded-lg border border-blue-400 bg-blue-600 text-[10px] font-semibold text-white shadow-sm"
+									className="absolute inset-0 flex items-center justify-center rounded-lg border border-blue-400 bg-[var(--inno-accent)] text-[10px] font-semibold text-white shadow-sm"
 									style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
 								>
 									IA
 								</span>
 							</motion.div>
 						</button>
-						<h1 className="inno-sidebar-title truncate font-semibold tracking-tight text-slate-800">
+						<h1 className="inno-sidebar-title truncate font-semibold tracking-tight text-[var(--inno-text)]">
 							Inno Agent
 						</h1>
 					</div>
 					<button
-						className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white hover:text-slate-600"
+						className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--inno-text-subtle)] transition-colors hover:bg-[var(--inno-surface)] hover:text-[var(--inno-text-muted)]"
 						title="Collapse"
 						onClick={() => appStore.setSidebarCollapsed(true)}
 					>
@@ -669,13 +669,13 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 
 				{/* Recent conversations — the way back to a generated artifact */}
 				<div className="flex-1 min-h-0 overflow-y-auto px-1.5 py-2 sidebar-scroll">
-					<div className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">最近</div>
+					<div className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-[var(--inno-text-subtle)]">最近</div>
 					{state.isLoading ? (
 						<div className="flex items-center justify-center py-8">
-							<span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-transparent" />
+							<span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--inno-border-strong)] border-t-transparent" />
 						</div>
 					) : recentSessions.length === 0 ? (
-						<div className="inno-sidebar-text px-2 py-8 text-center text-slate-400">暂无对话</div>
+						<div className="inno-sidebar-text px-2 py-8 text-center text-[var(--inno-text-subtle)]">暂无对话</div>
 					) : (
 						recentSessions.map((session) => {
 							const ws = sessionToWorkspace.get(session.id);
@@ -693,14 +693,14 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 									}}
 									className={`group/srow relative mb-1 block w-full cursor-pointer rounded-lg border px-2.5 py-2 text-left transition-all duration-150 ${
 										state.currentSessionId === session.id
-											? "border-slate-200 bg-slate-100 shadow-sm"
-											: "border-transparent hover:border-slate-200 hover:bg-white"
+											? "border-[var(--inno-border)] bg-[var(--inno-surface-muted)] shadow-sm"
+											: "border-transparent hover:border-[var(--inno-border)] hover:bg-[var(--inno-surface)]"
 									}`}
 								>
 									<div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-										<div className="inno-sidebar-title min-w-0 truncate font-medium text-slate-800">{session.name}</div>
+										<div className="inno-sidebar-title min-w-0 truncate font-medium text-[var(--inno-text)]">{session.name}</div>
 										<button
-											className="rounded p-0.5 text-slate-400 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover/srow:opacity-100"
+											className="rounded p-0.5 text-[var(--inno-text-subtle)] opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover/srow:opacity-100"
 											title="删除对话"
 											onClick={(e) => { e.stopPropagation(); handleDelete(session); }}
 										>
@@ -708,19 +708,19 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 										</button>
 									</div>
 									{session.preview && session.preview !== session.name ? (
-										<div className="inno-sidebar-meta mt-0.5 truncate text-slate-400">{session.preview}</div>
+										<div className="inno-sidebar-meta mt-0.5 truncate text-[var(--inno-text-subtle)]">{session.preview}</div>
 									) : null}
 									<div className="mt-1 flex items-center gap-1.5">
 										{ws ? (
 											<span
-												className="inline-flex max-w-[140px] items-center gap-1 rounded bg-slate-100 px-1.5 py-px text-[9px] font-medium leading-none text-slate-500 ring-1 ring-slate-200/70"
+												className="inline-flex max-w-[140px] items-center gap-1 rounded bg-[var(--inno-surface-muted)] px-1.5 py-px text-[9px] font-medium leading-none text-[var(--inno-text-muted)] ring-1 ring-slate-200/70"
 												title={`工作区:${ws.name}`}
 											>
 												<FolderKanban size={9} className="shrink-0" />
 												<span className="truncate">{ws.name}</span>
 											</span>
 										) : null}
-										<span className="inno-sidebar-meta tabular-nums text-slate-400">{formatTime(session.updatedAt)}</span>
+										<span className="inno-sidebar-meta tabular-nums text-[var(--inno-text-subtle)]">{formatTime(session.updatedAt)}</span>
 									</div>
 								</div>
 							);
@@ -731,7 +731,7 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 				{/* Footer: new chat (mode switch lives on the IA logo above) */}
 				<div className="border-t border-slate-200/70 p-2">
 					<button
-						className="inno-sidebar-text flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800 px-3 py-1.5 font-medium text-white shadow-sm transition-colors hover:bg-slate-700"
+						className="inno-sidebar-text flex w-full items-center justify-center gap-2 rounded-lg inno-primary-button px-3 py-1.5 font-medium text-white shadow-sm transition-colors"
 						onClick={newChat}
 					>
 						<Plus size={14} /> 新建对话
@@ -765,13 +765,13 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 								className="h-7 w-7"
 							>
 								<span
-									className="absolute inset-0 flex items-center justify-center rounded-lg border border-slate-200 bg-white text-[10px] font-semibold text-slate-800 shadow-sm"
+									className="absolute inset-0 flex items-center justify-center rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)] text-[10px] font-semibold text-[var(--inno-text)] shadow-sm"
 									style={{ backfaceVisibility: "hidden" }}
 								>
 									IA
 								</span>
 								<span
-									className="absolute inset-0 flex items-center justify-center rounded-lg border border-blue-400 bg-blue-600 text-[10px] font-semibold text-white shadow-sm"
+									className="absolute inset-0 flex items-center justify-center rounded-lg border border-blue-400 bg-[var(--inno-accent)] text-[10px] font-semibold text-white shadow-sm"
 									style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
 								>
 									IA
@@ -779,21 +779,21 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 							</motion.div>
 						</button>
 						<div className="min-w-0">
-							<h1 className="inno-sidebar-title font-semibold tracking-tight text-slate-800">
-								Inno Agent{simpleMode ? <span className="font-normal text-blue-600">(简单模式)</span> : null}
+							<h1 className="inno-sidebar-title font-semibold tracking-tight text-[var(--inno-text)]">
+								Inno Agent{simpleMode ? <span className="font-normal text-[var(--inno-accent)]">(简单模式)</span> : null}
 							</h1>
 						</div>
 					</div>
 					<div className="flex items-center gap-1">
 						<button
-							className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white hover:text-slate-600"
+							className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--inno-text-subtle)] transition-colors hover:bg-[var(--inno-surface)] hover:text-[var(--inno-text-muted)]"
 							title="Refresh"
 							onClick={() => void sessionsStore.load()}
 						>
 							<RefreshCw size={13} />
 						</button>
 						<button
-							className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white hover:text-slate-600"
+							className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--inno-text-subtle)] transition-colors hover:bg-[var(--inno-surface)] hover:text-[var(--inno-text-muted)]"
 							title="Collapse"
 							onClick={() => appStore.setSidebarCollapsed(true)}
 						>
@@ -810,9 +810,9 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 					{showSearch ? (
 						<div className="flex items-center gap-1">
 							<div className="relative flex-1">
-								<Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+								<Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--inno-text-subtle)]" />
 								<input
-									className="inno-sidebar-text w-full rounded-md border border-slate-200 bg-white py-1 pl-7 pr-7 outline-none placeholder:text-slate-400 focus:border-blue-300 focus:ring-1 focus:ring-blue-200"
+									className="inno-sidebar-text w-full rounded-md border border-[var(--inno-border)] bg-[var(--inno-surface)] py-1 pl-7 pr-7 outline-none placeholder:text-[var(--inno-text-subtle)] focus:border-blue-300 focus:ring-1 focus:ring-blue-200"
 									placeholder="搜索对话..."
 									value={state.searchQuery}
 									autoFocus
@@ -820,7 +820,7 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 								/>
 								{state.searchQuery && (
 									<button
-										className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+										className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[var(--inno-text-subtle)] hover:text-[var(--inno-text-muted)]"
 										onClick={() => sessionsStore.setSearchQuery("")}
 									>
 										<X size={12} />
@@ -828,7 +828,7 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 								)}
 							</div>
 							<button
-								className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+								className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[var(--inno-text-subtle)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text-muted)]"
 								onClick={() => { setShowSearch(false); sessionsStore.setSearchQuery(""); }}
 							>
 								<X size={13} />
@@ -836,9 +836,9 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 						</div>
 					) : (
 						<div className="relative">
-							<Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+							<Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--inno-text-subtle)] pointer-events-none" />
 							<button
-								className="inno-sidebar-text w-full rounded-md border border-slate-200 bg-white py-1.5 pl-7 pr-3 text-left text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-50"
+								className="inno-sidebar-text w-full rounded-md border border-[var(--inno-border)] bg-[var(--inno-surface)] py-1.5 pl-7 pr-3 text-left text-[var(--inno-text-subtle)] transition-colors hover:border-[var(--inno-border-strong)] hover:bg-[var(--inno-surface-muted)]"
 								onClick={() => setShowSearch(true)}
 							>
 								搜索对话...
@@ -853,14 +853,14 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 						{orderedChannels.map((ch) => (
 							<button
 								key={ch}
-								className={`inno-sidebar-meta rounded-full px-1.5 py-px font-medium transition-colors ${channelFilterClass(ch, state.channelFilter === ch)}`}
+								className={`inno-channel-filter-chip inno-sidebar-meta rounded-full px-1.5 py-px font-medium transition-colors ${channelFilterClass(ch, state.channelFilter === ch)}`}
 								onClick={() => sessionsStore.setChannelFilter(state.channelFilter === ch ? null : ch)}
 							>
 								{channelLabel(ch)}
 							</button>
 						))}
 						<button
-							className={`inno-sidebar-meta rounded-full px-1.5 py-px font-medium transition-colors ${channelFilterClass(null, state.channelFilter === null)}`}
+							className={`inno-channel-filter-chip inno-sidebar-meta rounded-full px-1.5 py-px font-medium transition-colors ${channelFilterClass(null, state.channelFilter === null)}`}
 							onClick={() => sessionsStore.setChannelFilter(null)}
 						>
 							全部
@@ -873,10 +873,10 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 			<div className="flex-1 min-h-0 overflow-y-auto px-1.5 pb-2 sidebar-scroll">
 				{state.isLoading ? (
 					<div className="flex items-center justify-center py-8">
-						<span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-transparent" />
+						<span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--inno-border-strong)] border-t-transparent" />
 					</div>
 				) : groups.length === 0 ? (
-					<div className="inno-sidebar-text px-2 py-8 text-center text-slate-400">
+					<div className="inno-sidebar-text px-2 py-8 text-center text-[var(--inno-text-subtle)]">
 						{state.searchQuery || state.channelFilter ? "无匹配结果" : "暂无对话记录"}
 					</div>
 				) : (
@@ -939,7 +939,7 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 			{/* Footer */}
 			<div className="border-t border-slate-200/70 p-2">
 				<button
-					className="inno-sidebar-text flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800 px-3 py-1.5 font-medium text-white shadow-sm transition-colors hover:bg-slate-700"
+					className="inno-sidebar-text flex w-full items-center justify-center gap-2 rounded-lg inno-primary-button px-3 py-1.5 font-medium text-white shadow-sm transition-colors"
 					onClick={newChat}
 				>
 					<Plus size={14} /> 新建对话

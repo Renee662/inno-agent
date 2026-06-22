@@ -84,6 +84,13 @@ export async function saveContentHubSettings(payload: ContentHubPayload): Promis
 	});
 }
 
+export async function saveThemeSettings(theme: string): Promise<InnoSettings> {
+	return apiFetch<InnoSettings>("/api/settings/theme", {
+		method: "PUT",
+		body: JSON.stringify({ theme }),
+	});
+}
+
 export async function wechatQrLogin(): Promise<{ qrId: string; qrUrl: string }> {
 	return apiFetch<{ qrId: string; qrUrl: string }>("/api/channels/wechat/qr-login", {
 		method: "POST",

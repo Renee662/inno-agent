@@ -145,16 +145,16 @@ function CsvPreview({ name, content }: { name: string; content: string }) {
 	}, [name, content]);
 
 	if (!rows.length) {
-		return <div className="flex h-full items-center justify-center text-sm text-slate-500">{t("preview.emptyTable", "Empty table")}</div>;
+		return <div className="flex h-full items-center justify-center text-sm text-[var(--inno-text-muted)]">{t("preview.emptyTable", "Empty table")}</div>;
 	}
 	const [header, ...body] = rows;
 	return (
-		<div className="h-full overflow-auto bg-white p-3">
+		<div className="h-full overflow-auto bg-[var(--inno-surface)] p-3">
 			<table className="w-full border-collapse text-xs">
 				<thead className="sticky top-0 z-10">
 					<tr>
 						{header.map((cell, i) => (
-							<th key={i} className="border border-slate-200 bg-slate-50 px-2 py-1 text-left font-semibold text-slate-700">
+							<th key={i} className="border border-[var(--inno-border)] bg-[var(--inno-surface-muted)] px-2 py-1 text-left font-semibold text-[var(--inno-text)]">
 								{cell}
 							</th>
 						))}
@@ -162,9 +162,9 @@ function CsvPreview({ name, content }: { name: string; content: string }) {
 				</thead>
 				<tbody>
 					{body.map((r, ri) => (
-						<tr key={ri} className="odd:bg-white even:bg-slate-50/60">
+						<tr key={ri} className="odd:bg-[var(--inno-surface)] even:bg-slate-50/60">
 							{header.map((_, ci) => (
-								<td key={ci} className="border border-slate-200 px-2 py-1 align-top text-slate-600">
+								<td key={ci} className="border border-[var(--inno-border)] px-2 py-1 align-top text-[var(--inno-text-muted)]">
 									{r[ci] ?? ""}
 								</td>
 							))}
@@ -172,7 +172,7 @@ function CsvPreview({ name, content }: { name: string; content: string }) {
 					))}
 				</tbody>
 			</table>
-			<div className="mt-2 text-[10px] text-slate-400">{t("preview.tableRows", "{{count}} rows", { count: body.length })}</div>
+			<div className="mt-2 text-[10px] text-[var(--inno-text-subtle)]">{t("preview.tableRows", "{{count}} rows", { count: body.length })}</div>
 		</div>
 	);
 }
@@ -218,14 +218,14 @@ function OfficePreview({ file }: { file: WorkspaceFileDetail }) {
 	}, [file.url]);
 
 	if (loading) {
-		return <div className="flex h-full items-center justify-center text-sm text-slate-500">{t("preview.officeParsing", "Extracting document text...")}</div>;
+		return <div className="flex h-full items-center justify-center text-sm text-[var(--inno-text-muted)]">{t("preview.officeParsing", "Extracting document text...")}</div>;
 	}
 	if (error) {
 		return (
-			<div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-slate-500">
-				<div className="font-medium text-slate-700">{file.name}</div>
+			<div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-[var(--inno-text-muted)]">
+				<div className="font-medium text-[var(--inno-text)]">{file.name}</div>
 				<div className="text-xs text-red-500">{error}</div>
-				<button className="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50" onClick={downloadOriginal}>
+				<button className="flex items-center gap-1 rounded-md border border-[var(--inno-border)] px-3 py-1.5 text-xs text-[var(--inno-text-muted)] hover:bg-[var(--inno-surface-muted)]" onClick={downloadOriginal}>
 					<Download size={12} />
 					{t("files.download", "Download")}
 				</button>
@@ -234,25 +234,25 @@ function OfficePreview({ file }: { file: WorkspaceFileDetail }) {
 	}
 	const pages = data?.pages?.length ? data.pages : (data ? [{ pageNumber: 1, text: data.text }] : []);
 	return (
-		<div className="workspace-scroll h-full overflow-auto bg-slate-50 p-4">
+		<div className="workspace-scroll h-full overflow-auto bg-[var(--inno-surface-muted)] p-4">
 			<div className="mb-3 flex items-center justify-between gap-2">
-				<div className="text-xs text-slate-500">
+				<div className="text-xs text-[var(--inno-text-muted)]">
 					{t("preview.officeNote", "Text extracted for preview · formatting may differ")} · {t("preview.pageCount", "{{count}} pages", { count: data?.pageCount ?? pages.length })}
 				</div>
-				<button className="flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-100" onClick={downloadOriginal}>
+				<button className="flex shrink-0 items-center gap-1 rounded-md border border-[var(--inno-border)] bg-[var(--inno-surface)] px-2.5 py-1 text-xs text-[var(--inno-text-muted)] hover:bg-[var(--inno-surface-muted)]" onClick={downloadOriginal}>
 					<Download size={12} />
 					{t("files.download", "Download")}
 				</button>
 			</div>
 			<div className="space-y-3">
 				{pages.map((p) => (
-					<div key={p.pageNumber} className="rounded-lg border border-slate-200 bg-white p-4">
+					<div key={p.pageNumber} className="rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)] p-4">
 						{pages.length > 1 ? (
-							<div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+							<div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-[var(--inno-text-subtle)]">
 								{t("preview.page", "Page")} {p.pageNumber}
 							</div>
 						) : null}
-						<pre className="whitespace-pre-wrap break-words font-sans text-xs leading-relaxed text-slate-700">{p.text}</pre>
+						<pre className="whitespace-pre-wrap break-words font-sans text-xs leading-relaxed text-[var(--inno-text)]">{p.text}</pre>
 					</div>
 				))}
 			</div>
@@ -271,14 +271,14 @@ function HtmlPreview({ file }: { file: WorkspaceFileDetail }) {
     ? raw.replace(/<head([^>]*)>/i, `<head$1>${guardScript}`)
     : `<!doctype html><html><head>${guardScript}</head><body>${raw}</body></html>`;
 
-  return <iframe className="h-full w-full border-0 bg-white" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" srcDoc={html} title={file.name} />;
+  return <iframe className="h-full w-full border-0 bg-[var(--inno-surface)]" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" srcDoc={html} title={file.name} />;
 }
 
 /* ---------- Preview (read-only) ---------- */
 
 function Preview({ file, isLoading }: { file: WorkspaceFileDetail; isLoading: boolean }) {
 	const { t } = useTranslation();
-	if (isLoading) return <div className="flex h-full items-center justify-center text-sm text-slate-500">{t("preview.loadingFile")}</div>;
+	if (isLoading) return <div className="flex h-full items-center justify-center text-sm text-[var(--inno-text-muted)]">{t("preview.loadingFile")}</div>;
 	if (file.kind === "markdown") return <div className="workspace-scroll h-full overflow-y-auto p-5"><markdown-artifact content={file.content ?? ""} /></div>;
 		if (file.kind === "html") return <HtmlPreview file={file} />;
 	if (file.kind === "pdf") {
@@ -289,11 +289,11 @@ function Preview({ file, isLoading }: { file: WorkspaceFileDetail; isLoading: bo
 		const pdfUrl = baseUrl
 			? `${baseUrl}${baseUrl.includes("#") ? "&" : "#"}view=FitH&zoom=page-width`
 			: "";
-		return <iframe className="h-full w-full border-0 bg-white" src={pdfUrl} title={file.name} />;
+		return <iframe className="h-full w-full border-0 bg-[var(--inno-surface)]" src={pdfUrl} title={file.name} />;
 	}
 	if (file.kind === "image") {
 		return (
-			<div className="flex h-full items-center justify-center overflow-auto bg-slate-50 p-4">
+			<div className="flex h-full items-center justify-center overflow-auto bg-[var(--inno-surface-muted)] p-4">
 				<img className="max-h-full max-w-full object-contain" src={file.url ?? ""} alt={file.name} />
 			</div>
 		);
@@ -303,8 +303,8 @@ function Preview({ file, isLoading }: { file: WorkspaceFileDetail; isLoading: bo
 	}
 	if (file.kind === "binary") {
 		return (
-			<div className="flex h-full flex-col items-center justify-center text-sm text-slate-500">
-				<div className="mb-2 text-lg font-medium text-slate-950">{file.name}</div>
+			<div className="flex h-full flex-col items-center justify-center text-sm text-[var(--inno-text-muted)]">
+				<div className="mb-2 text-lg font-medium text-[var(--inno-text)]">{file.name}</div>
 				<div>{t("preview.binaryFile")} · {formatSize(file.size)}</div>
 			</div>
 		);
@@ -386,15 +386,15 @@ function FileContentPane({ onToggleSidebar, sidebarOpen }: { onToggleSidebar: ()
 		return (
 			<div className="flex h-full flex-col">
 				{/* Editor toolbar */}
-				<div className="flex h-10 items-center justify-between border-b border-slate-200 bg-white px-3">
+				<div className="flex h-10 items-center justify-between border-b border-[var(--inno-border)] bg-[var(--inno-surface)] px-3">
 					<div className="min-w-0">
 						<div className="truncate text-sm font-medium">{state.file.name}</div>
-						<div className="truncate text-[10px] text-slate-500">{t("files.editing", "Editing")} · {state.file.path}</div>
+						<div className="truncate text-[10px] text-[var(--inno-text-muted)]">{t("files.editing", "Editing")} · {state.file.path}</div>
 					</div>
 					<div className="flex items-center gap-1.5">
 						<button
 							disabled={state.isSaving}
-							className="flex h-7 items-center gap-1 rounded-md bg-slate-900 px-2.5 text-xs text-white hover:bg-slate-800 disabled:opacity-50"
+							className="flex h-7 items-center gap-1 rounded-md inno-primary-button px-2.5 text-xs text-white disabled:opacity-50"
 							onClick={() => void workspaceStore.saveFile()}
 						>
 							<Save size={12} />
@@ -402,7 +402,7 @@ function FileContentPane({ onToggleSidebar, sidebarOpen }: { onToggleSidebar: ()
 						</button>
 						<button
 							disabled={state.isSaving}
-							className="flex h-7 items-center gap-1 rounded-md border border-slate-200 px-2.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+							className="flex h-7 items-center gap-1 rounded-md border border-[var(--inno-border)] px-2.5 text-xs text-[var(--inno-text-muted)] hover:bg-[var(--inno-surface-muted)] disabled:opacity-50"
 							onClick={() => workspaceStore.cancelEditing()}
 						>
 							<X size={12} />
@@ -425,10 +425,10 @@ function FileContentPane({ onToggleSidebar, sidebarOpen }: { onToggleSidebar: ()
 	// Read-only view
 	return (
 		<div className="flex h-full flex-col">
-			<div className="flex h-10 items-center justify-between border-b border-slate-200 bg-white px-3">
+			<div className="flex h-10 items-center justify-between border-b border-[var(--inno-border)] bg-[var(--inno-surface)] px-3">
 				<div className="flex min-w-0 flex-1 items-center gap-2">
 					<button
-						className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+						className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--inno-text-subtle)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]"
 						onClick={onToggleSidebar}
 						title={sidebarOpen ? t("common.collapseSidebar", "Collapse sidebar") : t("common.expandSidebar", "Expand sidebar")}
 					>
@@ -436,7 +436,7 @@ function FileContentPane({ onToggleSidebar, sidebarOpen }: { onToggleSidebar: ()
 					</button>
 					<div className="min-w-0">
 						<div className="truncate text-sm font-medium">{state.file?.name ?? t("preview.noFile", "No file selected")}</div>
-						<div className="truncate text-[10px] text-slate-500">
+						<div className="truncate text-[10px] text-[var(--inno-text-muted)]">
 							{state.file ? `${state.file.path} · ${formatSize(state.file.size)}` : t("preview.selectFile", "Select a file to preview")}
 						</div>
 					</div>
@@ -445,7 +445,7 @@ function FileContentPane({ onToggleSidebar, sidebarOpen }: { onToggleSidebar: ()
 					{state.file && !simpleMode ? <RunButton filePath={state.file.path} /> : null}
 					{canEdit && (
 						<button
-							className="flex h-7 items-center gap-1 rounded-md border border-slate-200 px-2.5 text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+							className="flex h-7 items-center gap-1 rounded-md border border-[var(--inno-border)] px-2.5 text-xs text-[var(--inno-text-muted)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]"
 							onClick={() => workspaceStore.startEditing()}
 						>
 							<Pencil size={12} />
@@ -457,7 +457,7 @@ function FileContentPane({ onToggleSidebar, sidebarOpen }: { onToggleSidebar: ()
 			<div className="workspace-scroll min-h-0 flex-1 overflow-auto">
 				{state.error ? <div className="p-4 text-sm text-red-500">{state.error}</div> : null}
 				{!state.error && state.file ? <Preview file={state.file} isLoading={state.isLoadingFile} /> : null}
-				{!state.error && !state.file ? <div className="flex h-full items-center justify-center text-sm text-slate-500">{t("preview.noPreview", "Nothing to preview")}</div> : null}
+				{!state.error && !state.file ? <div className="flex h-full items-center justify-center text-sm text-[var(--inno-text-muted)]">{t("preview.noPreview", "Nothing to preview")}</div> : null}
 			</div>
 		</div>
 	);
@@ -474,7 +474,9 @@ function Node({ node, style, dragHandle }: NodeRendererProps<ArboristNode>) {
 			ref={dragHandle}
 			style={style}
 			className={`group flex items-center gap-1.5 rounded-md px-2 py-1 text-xs cursor-pointer select-none ${
-				selected ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-100/85 hover:text-slate-950"
+				selected
+					? "bg-[var(--inno-accent-soft)] text-[var(--inno-accent)] ring-1 ring-blue-100"
+					: "text-[var(--inno-text-muted)] hover:bg-slate-100/85 hover:text-[var(--inno-text)]"
 			}`}
 			onClick={(e) => {
 				e.stopPropagation();
@@ -492,13 +494,13 @@ function Node({ node, style, dragHandle }: NodeRendererProps<ArboristNode>) {
 				e.currentTarget.dispatchEvent(ev);
 			}}
 		>
-			<span className="flex h-4 w-4 shrink-0 items-center justify-center text-slate-400">
+			<span className="flex h-4 w-4 shrink-0 items-center justify-center text-[var(--inno-text-subtle)]">
 				{nodeIcon(node.data.name, isDir, node.isOpen)}
 			</span>
 			{node.isEditing ? (
 				<input
 					autoFocus
-					className="min-w-0 flex-1 rounded border border-blue-300 bg-white px-1 py-0.5 text-xs outline-none focus:ring-1 focus:ring-blue-200"
+					className="min-w-0 flex-1 rounded border border-blue-300 bg-[var(--inno-surface)] px-1 py-0.5 text-xs outline-none focus:ring-1 focus:ring-blue-200"
 					defaultValue={node.data.name}
 					onFocus={(e) => {
 						const val = e.currentTarget.value;
@@ -556,11 +558,11 @@ function ContextMenu({ state, onClose, treeRef, workspaceId }: { state: CtxMenuS
 	return (
 		<>
 			<div className="fixed inset-0 z-40" onClick={onClose} />
-			<div className="fixed z-50 min-w-[140px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg" style={{ left: state.x, top: state.y }}>
+			<div className="fixed z-50 min-w-[140px] rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)] py-1 shadow-lg" style={{ left: state.x, top: state.y }}>
 				{items.map((item) => (
 					<button
 						key={item.label}
-						className="flex w-full items-center px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100"
+						className="flex w-full items-center px-3 py-1.5 text-left text-xs text-[var(--inno-text)] hover:bg-[var(--inno-surface-muted)]"
 						onClick={() => { item.action(); onClose(); }}
 					>
 						{item.label}
@@ -579,13 +581,13 @@ function DeleteConfirm({ paths, onConfirm, onCancel }: { paths: string[]; onConf
 	return (
 		<>
 			<div className="fixed inset-0 z-40 bg-black/20" onClick={onCancel} />
-			<div className="fixed left-1/2 top-1/2 z-50 w-80 -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
-				<div className="mb-3 text-sm font-medium text-slate-950">{t("files.confirmDelete", "Delete?")}</div>
-				<div className="mb-4 text-xs text-slate-500">
+			<div className="fixed left-1/2 top-1/2 z-50 w-80 -translate-x-1/2 -translate-y-1/2 rounded-xl border border-[var(--inno-border)] bg-[var(--inno-surface)] p-5 shadow-xl">
+				<div className="mb-3 text-sm font-medium text-[var(--inno-text)]">{t("files.confirmDelete", "Delete?")}</div>
+				<div className="mb-4 text-xs text-[var(--inno-text-muted)]">
 					{names.length === 1 ? names[0] : `${names.length} items`}
 				</div>
 				<div className="flex justify-end gap-2">
-					<button className="rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50" onClick={onCancel}>
+					<button className="rounded-md border border-[var(--inno-border)] px-3 py-1.5 text-xs text-[var(--inno-text)] hover:bg-[var(--inno-surface-muted)]" onClick={onCancel}>
 						{t("common.cancel", "Cancel")}
 					</button>
 					<button className="rounded-md bg-red-500 px-3 py-1.5 text-xs text-white hover:bg-red-600" onClick={onConfirm}>
@@ -797,22 +799,22 @@ export function WorkspaceBrowser() {
 		<div ref={rootRef} className={`grid h-full min-h-0 gap-3 bg-transparent p-3 transition-[grid-template-columns] duration-200 ${showContent ? (sidebarOpen ? "grid-cols-[260px_minmax(0,1fr)]" : "grid-cols-[0px_minmax(0,1fr)]") : "grid-cols-[minmax(0,1fr)]"}`}>
 			{/* --- Tree pane --- */}
 			<aside
-				className={`inno-workspace-card relative flex min-h-0 flex-col overflow-hidden rounded-lg transition-opacity duration-200 ${isDragOver ? "border-blue-400 bg-blue-50" : ""} ${sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}
+				className={`inno-workspace-card relative flex min-h-0 flex-col overflow-hidden rounded-lg transition-opacity duration-200 ${isDragOver ? "border-blue-400 bg-[var(--inno-accent-soft)]" : ""} ${sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}
 				onDragOver={handleDragOver}
 				onDragLeave={handleDragLeave}
 				onDrop={handleDrop}
 			>
 				{/* Toolbar */}
-				<div className="flex h-10 items-center gap-1 border-b border-slate-200 bg-slate-50 px-2">
+				<div className="flex h-10 items-center gap-1 border-b border-[var(--inno-border)] bg-[var(--inno-surface-muted)] px-2">
 					<div className="min-w-0 flex-1">
-						<span className="block max-w-[220px] truncate px-1 text-xs font-medium text-slate-700" title={activeWorkspaceName}>
+						<span className="block max-w-[220px] truncate px-1 text-xs font-medium text-[var(--inno-text)]" title={activeWorkspaceName}>
 							{activeWorkspaceName || "工作区"}
 						</span>
 					</div>
-					<button disabled={busy} className="flex h-6 w-6 items-center justify-center rounded text-slate-400 transition-colors hover:bg-violet-100 hover:text-violet-600 disabled:opacity-40" title={t("files.uploadSkill", "上传技能包 (.zip/.md) 到 .skills")} onClick={() => skillUploadRef.current?.click()}>
+					<button disabled={busy} className="flex h-6 w-6 items-center justify-center rounded text-[var(--inno-text-subtle)] transition-colors hover:bg-violet-100 hover:text-violet-600 disabled:opacity-40" title={t("files.uploadSkill", "上传技能包 (.zip/.md) 到 .skills")} onClick={() => skillUploadRef.current?.click()}>
 						<Sparkles size={13} />
 					</button>
-					<button disabled={busy} className="flex h-6 w-6 items-center justify-center rounded text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700 disabled:opacity-40" title={t("preview.refresh", "Refresh")} onClick={() => void workspaceStore.loadTree()}>
+					<button disabled={busy} className="flex h-6 w-6 items-center justify-center rounded text-[var(--inno-text-subtle)] transition-colors hover:bg-slate-200 hover:text-[var(--inno-text)] disabled:opacity-40" title={t("preview.refresh", "Refresh")} onClick={() => void workspaceStore.loadTree()}>
 						<RefreshCw size={13} />
 					</button>
 					<input ref={skillUploadRef} type="file" multiple accept=".zip,application/zip,.md,text/markdown" className="hidden" onChange={handleSkillUploadChange} />
@@ -829,7 +831,7 @@ export function WorkspaceBrowser() {
 					}}
 				>
 					{state.isLoadingTree && !arboristData.length ? (
-						<div className="p-3 text-xs text-slate-500">{t("preview.loading", "Loading...")}</div>
+						<div className="p-3 text-xs text-[var(--inno-text-muted)]">{t("preview.loading", "Loading...")}</div>
 					) : (
 						<>
 							{/* Always mount the Tree (even when empty) so treeRef is available
@@ -852,7 +854,7 @@ export function WorkspaceBrowser() {
 								{Node}
 							</Tree>
 							{!arboristData.length && (
-								<div className="pointer-events-none absolute left-0 top-0 p-3 text-xs text-slate-500">
+								<div className="pointer-events-none absolute left-0 top-0 p-3 text-xs text-[var(--inno-text-muted)]">
 									{t("preview.empty", "Empty workspace")}
 								</div>
 							)}
@@ -862,8 +864,8 @@ export function WorkspaceBrowser() {
 
 				{/* Drag overlay */}
 				{isDragOver && (
-					<div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-blue-50">
-						<div className="rounded-lg bg-white px-4 py-2 text-xs font-medium text-blue-600 shadow-sm">{t("files.dropToUpload", "Drop files to upload")}</div>
+					<div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-[var(--inno-accent-soft)]">
+						<div className="rounded-lg bg-[var(--inno-surface)] px-4 py-2 text-xs font-medium text-[var(--inno-accent)] shadow-sm">{t("files.dropToUpload", "Drop files to upload")}</div>
 					</div>
 				)}
 			</aside>

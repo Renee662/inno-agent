@@ -74,13 +74,13 @@ export class SessionSidebar extends LitElement {
 
 	private _channelClass(channel: SessionChannel): string {
 		const classes: Record<SessionChannel, string> = {
-			cli: "bg-blue-50 text-blue-700 ring-1 ring-blue-100",
-			web: "bg-white/70 text-slate-700 ring-1 ring-slate-200",
+			cli: "bg-[var(--inno-accent-soft)] text-[var(--inno-accent)] ring-1 ring-blue-100",
+			web: "bg-white/70 text-[var(--inno-text)] ring-1 ring-slate-200",
 			feishu: "bg-green-50 text-green-700 ring-1 ring-green-100",
 			qq: "bg-cyan-50 text-cyan-700 ring-1 ring-cyan-100",
 			wechat: "bg-lime-50 text-lime-700 ring-1 ring-lime-100",
 			scheduler: "bg-amber-50 text-amber-700 ring-1 ring-amber-100",
-			unknown: "bg-white/60 text-slate-500 ring-1 ring-slate-200",
+			unknown: "bg-white/60 text-[var(--inno-text-muted)] ring-1 ring-slate-200",
 		};
 		return classes[channel] ?? classes.unknown;
 	}
@@ -91,8 +91,8 @@ export class SessionSidebar extends LitElement {
 			<button
 				class="w-full text-left rounded-md px-2.5 py-2.5 mb-1.5 transition-colors border
 					${active
-						? "bg-[var(--inno-sidebar-active)] text-slate-950 border-black/5"
-						: "border-transparent text-slate-700 hover:bg-black/[0.055] hover:text-slate-950"}"
+						? "bg-[var(--inno-sidebar-active)] text-[var(--inno-text)] border-black/5"
+						: "border-transparent text-[var(--inno-text)] hover:bg-black/[0.055] hover:text-[var(--inno-text)]"}"
 				@click=${() => {
 					appStore.setRightPanelTab("preview");
 					sessionsStore.openSession(session.id);
@@ -100,10 +100,10 @@ export class SessionSidebar extends LitElement {
 			>
 				<div class="flex items-start justify-between gap-2">
 					<div class="text-sm font-medium leading-snug line-clamp-2">${session.name}</div>
-					<div class="text-[10px] text-slate-500 shrink-0">${this._formatTime(session.updatedAt)}</div>
+					<div class="text-[10px] text-[var(--inno-text-muted)] shrink-0">${this._formatTime(session.updatedAt)}</div>
 				</div>
 				${session.preview && session.preview !== session.name
-					? html`<div class="mt-1 text-xs text-slate-500 line-clamp-2">${session.preview}</div>`
+					? html`<div class="mt-1 text-xs text-[var(--inno-text-muted)] line-clamp-2">${session.preview}</div>`
 					: ""}
 				<div class="flex items-center justify-between gap-2 mt-2">
 					<div class="flex items-center gap-1 flex-wrap">
@@ -113,7 +113,7 @@ export class SessionSidebar extends LitElement {
 							</span>
 						`)}
 					</div>
-					<span class="text-[11px] text-slate-500">${session.messageCount}</span>
+					<span class="text-[11px] text-[var(--inno-text-muted)]">${session.messageCount}</span>
 				</div>
 			</button>
 		`;
@@ -125,7 +125,7 @@ export class SessionSidebar extends LitElement {
 		return html`
 			<button
 				class="relative mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-md border text-[11px] font-medium transition-colors
-					${active ? "border-black/5 bg-[var(--inno-sidebar-active)] text-slate-950" : "border-black/10 bg-white/70 text-slate-600 hover:bg-black/[0.055] hover:text-slate-950"}"
+					${active ? "border-black/5 bg-[var(--inno-sidebar-active)] text-[var(--inno-text)]" : "border-black/10 bg-white/70 text-[var(--inno-text-muted)] hover:bg-black/[0.055] hover:text-[var(--inno-text)]"}"
 				title="${session.name} · ${this._channelLabel(channel)}"
 				@click=${() => {
 					appStore.setRightPanelTab("preview");
@@ -143,14 +143,14 @@ export class SessionSidebar extends LitElement {
 			return html`
 				<div class="flex h-full flex-col items-center border-r border-black/10 bg-[var(--inno-sidebar-bg)] py-2">
 					<button
-						class="mb-2 flex h-9 w-9 items-center justify-center rounded-md bg-slate-900 text-white text-lg hover:bg-slate-800"
+						class="mb-2 flex h-9 w-9 items-center justify-center rounded-md inno-primary-button text-white text-lg"
 						title="New chat"
 						@click=${() => this._newChat()}
 					>
 						+
 					</button>
 					<button
-						class="mb-2 flex h-9 w-9 items-center justify-center rounded-md border border-black/10 bg-white/70 text-sm text-slate-600 hover:bg-black/[0.055] hover:text-slate-950"
+						class="mb-2 flex h-9 w-9 items-center justify-center rounded-md border border-black/10 bg-white/70 text-sm text-[var(--inno-text-muted)] hover:bg-black/[0.055] hover:text-[var(--inno-text)]"
 						title="Expand sessions"
 						@click=${() => appStore.setSidebarCollapsed(false)}
 					>
@@ -173,11 +173,11 @@ export class SessionSidebar extends LitElement {
 							<span class="h-3 w-3 rounded-full bg-[#febc2e] ring-1 ring-black/10"></span>
 							<span class="h-3 w-3 rounded-full bg-[#28c840] ring-1 ring-black/10"></span>
 						</div>
-						<h1 class="text-base font-semibold tracking-tight text-slate-950">Inno Agent</h1>
-						<p class="text-xs text-slate-500 mt-0.5">Personal Learning Workstation</p>
+						<h1 class="text-base font-semibold tracking-tight text-[var(--inno-text)]">Inno Agent</h1>
+						<p class="text-xs text-[var(--inno-text-muted)] mt-0.5">Personal Learning Workstation</p>
 					</div>
 					<button
-						class="h-8 w-8 shrink-0 rounded-md border border-black/10 bg-white/70 text-sm text-slate-500 hover:bg-black/[0.055] hover:text-slate-950"
+						class="h-8 w-8 shrink-0 rounded-md border border-black/10 bg-white/70 text-sm text-[var(--inno-text-muted)] hover:bg-black/[0.055] hover:text-[var(--inno-text)]"
 						title="Collapse sessions"
 						@click=${() => appStore.setSidebarCollapsed(true)}
 					>
@@ -189,17 +189,17 @@ export class SessionSidebar extends LitElement {
 			<!-- Sessions -->
 			<div class="flex-1 min-h-0">
 				<div class="flex items-center justify-between px-3 py-2">
-					<h2 class="text-xs font-medium uppercase tracking-wide text-slate-500">Chat Sessions</h2>
+					<h2 class="text-xs font-medium uppercase tracking-wide text-[var(--inno-text-muted)]">Chat Sessions</h2>
 					<div class="flex items-center gap-2">
 						<button
-							class="rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white hover:bg-slate-800"
+							class="rounded-md inno-primary-button px-2 py-1 text-xs font-medium text-white"
 							title="New chat"
 							@click=${() => this._newChat()}
 						>
 							New
 						</button>
 						<button
-							class="text-xs text-slate-500 hover:text-slate-950"
+							class="text-xs text-[var(--inno-text-muted)] hover:text-[var(--inno-text)]"
 							title="Refresh sessions"
 							@click=${() => sessionsStore.load()}
 						>
@@ -209,9 +209,9 @@ export class SessionSidebar extends LitElement {
 				</div>
 				<div class="overflow-y-auto px-2 pb-2 h-[calc(100%-34px)]">
 					${this._isLoadingSessions
-						? html`<div class="px-2 py-3 text-xs text-slate-500">Loading...</div>`
+						? html`<div class="px-2 py-3 text-xs text-[var(--inno-text-muted)]">Loading...</div>`
 						: this._sessions.length === 0
-							? html`<div class="px-2 py-3 text-xs text-slate-500">No saved sessions</div>`
+							? html`<div class="px-2 py-3 text-xs text-[var(--inno-text-muted)]">No saved sessions</div>`
 							: this._sessions.map((session) => this._renderSession(session))}
 				</div>
 			</div>
@@ -220,7 +220,7 @@ export class SessionSidebar extends LitElement {
 			<div class="p-2 border-t border-black/10">
 				<button
 					class="flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm w-full
-						bg-slate-900 text-white hover:bg-slate-800 transition-colors"
+						inno-primary-button text-white transition-colors"
 					@click=${() => this._newChat()}
 				>
 					+ New Chat

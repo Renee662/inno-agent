@@ -1,30 +1,33 @@
 @import "@earendil-works/pi-web-ui/app.css";
 @import "tailwindcss";
+@import "./themes.css";
 
 :root {
-	--inno-background: #f7f8fa;
+	--inno-background: #f7f7f8;
 	--inno-surface: #ffffff;
-	--inno-surface-muted: #f3f4f6;
-	--inno-surface-raised: #fafafa;
-	--inno-sidebar-bg: #eceff3;
-	--inno-sidebar-active: #dde2e8;
+	--inno-surface-muted: #f1f1f2;
+	--inno-surface-raised: #fbfbfb;
+	--inno-sidebar-bg: #f3f4f4;
+	--inno-sidebar-active: #e8e8e9;
 	--inno-chat-bg: #ffffff;
-	--inno-workspace-bg: #f8fafc;
-	--inno-workspace-chrome: #f1f5f9;
-	--inno-border: #e5e7eb;
-	--inno-border-strong: #c9d0d9;
-	--inno-text: #171a1f;
-	--inno-text-muted: #667085;
-	--inno-text-subtle: #8a94a3;
-	--inno-accent: #2563eb;
-	--inno-accent-soft: #dbeafe;
-	--inno-tech: #06b6d4;
+	--inno-workspace-bg: #f8f8f8;
+	--inno-workspace-chrome: #f1f1f2;
+	--inno-border: #e3e3e4;
+	--inno-border-strong: #c8c8ca;
+	--inno-text: #202123;
+	--inno-text-muted: #6f7377;
+	--inno-text-subtle: #92969a;
+	--inno-accent: #34363a;
+	--inno-accent-soft: #ededee;
+	--inno-tech: #111827;
 	--inno-success: #16a34a;
 	--inno-warning: #d97706;
 	--inno-danger: #dc2626;
 	--inno-workspace-width: 520px;
-	--inno-shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 28px rgba(15, 23, 42, 0.04);
-	--inno-ring: 0 0 0 3px rgba(37, 99, 235, 0.13);
+	--inno-shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 28px rgba(0, 0, 0, 0.035);
+	--inno-ring: 0 0 0 3px rgba(52, 54, 58, 0.14);
+	--inno-selection-bg: rgba(52, 54, 58, 0.12);
+	--inno-grid-color: rgba(32, 33, 35, 0.025);
 	color: var(--inno-text);
 	background: var(--inno-background);
 	font-synthesis-weight: none;
@@ -64,7 +67,7 @@ summary:focus-visible {
 }
 
 ::selection {
-	background: rgba(37, 99, 235, 0.16);
+	background: var(--inno-selection-bg, rgba(37, 99, 235, 0.16));
 }
 
 /* Three-column layout */
@@ -288,17 +291,63 @@ inno-workspace-panel textarea {
 	transform: translateY(1px);
 }
 
+.inno-primary-button,
+.inno-primary-icon-button {
+	border-color: transparent;
+	background: var(--inno-accent);
+	color: #ffffff;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+	transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.inno-primary-button:hover:not(:disabled),
+.inno-primary-icon-button:hover:not(:disabled) {
+	background: var(--inno-tech);
+	color: #ffffff;
+	box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
+.inno-primary-button:active:not(:disabled),
+.inno-primary-icon-button:active:not(:disabled) {
+	transform: translateY(1px);
+}
+
+.inno-primary-button:disabled,
+.inno-primary-icon-button:disabled {
+	cursor: not-allowed;
+}
+
 .inno-chat-grid {
 	background:
-		linear-gradient(90deg, rgba(226, 232, 240, 0.38) 1px, transparent 1px),
-		linear-gradient(rgba(226, 232, 240, 0.38) 1px, transparent 1px),
-		radial-gradient(circle at 50% 0, rgba(37, 99, 235, 0.045), transparent 42%),
+		linear-gradient(90deg, var(--inno-grid-color, rgba(226, 232, 240, 0.38)) 1px, transparent 1px),
+		linear-gradient(var(--inno-grid-color, rgba(226, 232, 240, 0.38)) 1px, transparent 1px),
 		var(--inno-chat-bg);
-	background-size: 36px 36px, 36px 36px, auto, auto;
+	background-size: 36px 36px, 36px 36px, auto;
 }
 
 .inno-message {
+	min-width: 0;
+	max-width: 100%;
 	box-shadow: 0 1px 1px rgba(15, 23, 42, 0.03);
+}
+
+.inno-message details,
+.inno-message summary,
+.inno-message pre,
+.inno-message code {
+	min-width: 0;
+	max-width: 100%;
+}
+
+.inno-message pre,
+.inno-message code {
+	overflow-wrap: anywhere;
+	word-break: break-word;
+}
+
+.inno-message pre {
+	overflow-x: auto;
+	white-space: pre-wrap;
 }
 
 .inno-message markdown-artifact {
@@ -392,6 +441,10 @@ inno-workspace-panel textarea {
 	white-space: nowrap;
 }
 
+.inno-workspace-scope button.inno-settings-card-toggle {
+	white-space: normal;
+}
+
 .inno-workspace-scope .inno-workspace-tab {
 	font-size: 11px;
 	line-height: 1;
@@ -473,6 +526,164 @@ inno-workspace-panel textarea {
 .workspace-resizing {
 	cursor: col-resize;
 	user-select: none;
+}
+
+/* InnoSpark theme: inspired by agent.aiecnu.net's public chat UI. */
+:root[data-theme="innospark"] body {
+	background: var(--inno-background);
+}
+
+:root[data-theme="innospark"] .app-layout {
+	background: var(--inno-background);
+	box-shadow: inset 0 2px 0 rgba(85, 90, 255, 0.48);
+}
+
+:root[data-theme="innospark"] .app-layout::before {
+	background:
+		linear-gradient(120deg, transparent 0 30%, rgba(85, 90, 255, 0.025) 30.2% 30.8%, transparent 31% 100%),
+		linear-gradient(155deg, transparent 0 56%, rgba(85, 90, 255, 0.018) 56.2% 56.7%, transparent 57% 100%);
+	background-size: 560px 280px, 760px 360px;
+	mask-image: linear-gradient(to right, rgba(0, 0, 0, 0.38), transparent 42%, transparent 100%);
+}
+
+:root[data-theme="innospark"] inno-chat-center,
+:root[data-theme="innospark"] .inno-chat-grid {
+	background: var(--inno-chat-bg);
+}
+
+:root[data-theme="innospark"] .inno-chat-grid {
+	background-image: none;
+}
+
+:root[data-theme="innospark"] .inno-sidebar-scope,
+:root[data-theme="innospark"] inno-session-sidebar {
+	border-color: rgba(85, 90, 255, 0.08);
+	background: var(--inno-sidebar-bg);
+}
+
+:root[data-theme="innospark"] .inno-sidebar-scope header,
+:root[data-theme="innospark"] .inno-sidebar-scope [class*="border-b"] {
+	border-color: rgba(85, 90, 255, 0.1);
+}
+
+:root[data-theme="innospark"] .inno-sidebar-scope [role="button"],
+:root[data-theme="innospark"] .inno-sidebar-scope button {
+	transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+:root[data-theme="innospark"] .inno-sidebar-scope [role="button"]:hover,
+:root[data-theme="innospark"] .inno-sidebar-scope button:hover:not(:disabled):not(.inno-channel-filter-chip) {
+	background: rgba(255, 255, 255, 0.86);
+	box-shadow: 0 1px 2px rgba(85, 90, 255, 0.05);
+}
+
+:root[data-theme="innospark"] .inno-sidebar-scope [role="button"]:active,
+:root[data-theme="innospark"] .inno-sidebar-scope button:active:not(:disabled) {
+	transform: translateY(1px);
+}
+
+:root[data-theme="innospark"] .inno-panel-title,
+:root[data-theme="innospark"] .inno-sidebar-title,
+:root[data-theme="innospark"] .inno-workspace-tab,
+:root[data-theme="innospark"] h1,
+:root[data-theme="innospark"] h2 {
+	color: var(--inno-text);
+}
+
+:root[data-theme="innospark"] inno-chat-center h1,
+:root[data-theme="innospark"] inno-chat-center h2,
+:root[data-theme="innospark"] .inno-chat-grid h1,
+:root[data-theme="innospark"] .inno-chat-grid h2 {
+	color: var(--inno-accent);
+	text-shadow: 0 8px 22px rgba(85, 90, 255, 0.12);
+}
+
+:root[data-theme="innospark"] .inno-composer {
+	border: 2px solid rgba(85, 90, 255, 0.25);
+	border-radius: 22px;
+	background: #ffffff;
+	box-shadow: 0 2px 4px rgba(85, 90, 255, 0.08), 0 10px 28px rgba(85, 90, 255, 0.1);
+	transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+:root[data-theme="innospark"] .inno-composer:focus-within {
+	border-color: rgba(85, 90, 255, 0.36);
+	box-shadow: 0 3px 8px rgba(85, 90, 255, 0.1), 0 14px 34px rgba(85, 90, 255, 0.14);
+}
+
+:root[data-theme="innospark"] .inno-composer textarea {
+	color: var(--inno-text);
+}
+
+:root[data-theme="innospark"] .inno-icon-button,
+:root[data-theme="innospark"] .inno-composer button {
+	border-radius: 999px;
+}
+
+:root[data-theme="innospark"] .inno-icon-button {
+	border-color: rgba(85, 90, 255, 0.14);
+	background: #ffffff;
+	color: var(--inno-text-muted);
+	box-shadow: 0 1px 2px rgba(85, 90, 255, 0.06);
+}
+
+:root[data-theme="innospark"] .inno-icon-button:hover:not(:disabled) {
+	border-color: rgba(85, 90, 255, 0.28);
+	color: var(--inno-text);
+	box-shadow: 0 2px 8px rgba(85, 90, 255, 0.1);
+}
+
+:root[data-theme="innospark"] .inno-composer button[title="Send"],
+:root[data-theme="innospark"] .inno-composer button[title="Stop generation"] {
+	background: var(--inno-accent);
+	color: #ffffff;
+	box-shadow: 0 6px 18px rgba(85, 90, 255, 0.22);
+}
+
+:root[data-theme="innospark"] .inno-composer button[title="Send"]:hover:not(:disabled),
+:root[data-theme="innospark"] .inno-composer button[title="Stop generation"]:hover:not(:disabled) {
+	background: #474cf2;
+}
+
+:root[data-theme="innospark"] .inno-message {
+	border-radius: 22px;
+	box-shadow: none;
+}
+
+:root[data-theme="innospark"] .justify-end > .inno-message {
+	border-color: transparent;
+	background: var(--inno-accent-soft);
+}
+
+:root[data-theme="innospark"] .justify-start > .inno-message:has(markdown-artifact) {
+	border-color: transparent;
+	background: transparent;
+	box-shadow: none;
+}
+
+:root[data-theme="innospark"] .justify-start > details.inno-message {
+	border-color: rgba(85, 90, 255, 0.16);
+	background: rgba(255, 255, 255, 0.7);
+}
+
+:root[data-theme="innospark"] .workspace-panel,
+:root[data-theme="innospark"] inno-workspace-panel {
+	border-color: rgba(85, 90, 255, 0.12);
+	background: var(--inno-workspace-bg);
+}
+
+:root[data-theme="innospark"] .inno-workspace-card,
+:root[data-theme="innospark"] .inno-workspace-scope .rounded-lg,
+:root[data-theme="innospark"] .inno-workspace-scope .rounded {
+	border-color: rgba(85, 90, 255, 0.12);
+	background-color: rgba(255, 255, 255, 0.86);
+}
+
+:root[data-theme="innospark"] .workspace-resize-handle:hover::after,
+:root[data-theme="innospark"].workspace-resizing .workspace-resize-handle::after,
+:root[data-theme="innospark"] .workspace-resizing .workspace-resize-handle::after {
+	background: rgba(85, 90, 255, 0.5);
+	box-shadow: 0 0 0 2px rgba(85, 90, 255, 0.1);
 }
 
 @media (max-width: 960px) {

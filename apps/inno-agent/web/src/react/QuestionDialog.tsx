@@ -22,20 +22,20 @@ function OptionRow({
 		<button
 			className={`flex w-full items-start gap-2.5 rounded-md border px-3 py-2 text-left text-[13px] transition-colors ${
 				selected
-					? "border-blue-400 bg-blue-50 text-slate-950"
-					: "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+					? "border-blue-400 bg-[var(--inno-accent-soft)] text-[var(--inno-text)]"
+					: "border-[var(--inno-border)] bg-[var(--inno-surface)] text-[var(--inno-text)] hover:border-[var(--inno-border-strong)] hover:bg-[var(--inno-surface-muted)]"
 			}`}
 			onClick={onSelect}
 			onMouseEnter={onFocus}
 		>
-			<span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-slate-300">
+			<span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-[var(--inno-border-strong)]">
 				{selected ? (
 					<span className={`block ${multi ? "h-2 w-2 rounded-sm bg-blue-500" : "h-2 w-2 rounded-full bg-blue-500"}`} />
 				) : null}
 			</span>
 			<span className="min-w-0 flex-1">
 				<span className="font-medium">{label}</span>
-				{description ? <span className="mt-0.5 block text-xs text-slate-500">{description}</span> : null}
+				{description ? <span className="mt-0.5 block text-xs text-[var(--inno-text-muted)]">{description}</span> : null}
 			</span>
 		</button>
 	);
@@ -100,7 +100,7 @@ function QuestionTab({
 
 	return (
 		<div className="space-y-3">
-			<p className="text-sm font-medium text-slate-800">{q.question}</p>
+			<p className="text-sm font-medium text-[var(--inno-text)]">{q.question}</p>
 
 			<div className={hasPreview ? "flex gap-3" : ""}>
 				<div className={`space-y-1.5 ${hasPreview ? "w-1/2" : ""}`}>
@@ -120,7 +120,7 @@ function QuestionTab({
 						<div className="flex items-center gap-1.5 pt-1">
 							<input
 								type="text"
-								className="min-w-0 flex-1 rounded-md border border-slate-200 px-2.5 py-1.5 text-[13px] focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100"
+								className="min-w-0 flex-1 rounded-md border border-[var(--inno-border)] px-2.5 py-1.5 text-[13px] focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100"
 								placeholder="Type something..."
 								value={customText}
 								onChange={(e) => setCustomText(e.target.value)}
@@ -136,14 +136,14 @@ function QuestionTab({
 				</div>
 
 				{hasPreview && preview ? (
-					<div className="w-1/2 rounded-md border border-slate-200 bg-slate-50 p-3">
-						<pre className="whitespace-pre-wrap font-mono text-xs text-slate-700">{preview}</pre>
+					<div className="w-1/2 rounded-md border border-[var(--inno-border)] bg-[var(--inno-surface-muted)] p-3">
+						<pre className="whitespace-pre-wrap font-mono text-xs text-[var(--inno-text)]">{preview}</pre>
 					</div>
 				) : null}
 			</div>
 
 			<button
-				className="text-xs text-slate-400 underline hover:text-slate-600"
+				className="text-xs text-[var(--inno-text-subtle)] underline hover:text-[var(--inno-text-muted)]"
 				onClick={onDismiss}
 			>
 				Chat about this
@@ -203,7 +203,7 @@ export function QuestionDialog({ pending }: { pending: PendingQuestion }) {
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ duration: 0.3, ease: "easeOut" }}
 		>
-			<div className="w-full max-w-[76%] rounded-lg border border-blue-200 bg-white px-4 py-3 shadow-sm">
+			<div className="w-full max-w-[76%] rounded-lg border border-[var(--inno-accent-soft)] bg-[var(--inno-surface)] px-4 py-3 shadow-sm">
 				{questions.length > 1 ? (
 					<div className="mb-3 flex gap-1">
 						{questions.map((q, i) => (
@@ -211,8 +211,8 @@ export function QuestionDialog({ pending }: { pending: PendingQuestion }) {
 								key={q.header}
 								className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
 									activeTab === i
-										? "bg-blue-100 text-blue-700"
-										: "bg-slate-100 text-slate-500 hover:bg-slate-200"
+										? "bg-[var(--inno-accent-soft)] text-[var(--inno-accent)]"
+										: "bg-[var(--inno-surface-muted)] text-[var(--inno-text-muted)] hover:bg-slate-200"
 								}${answers.has(i) ? " ring-1 ring-green-300" : ""}`}
 								onClick={() => setActiveTab(i)}
 							>
@@ -234,11 +234,7 @@ export function QuestionDialog({ pending }: { pending: PendingQuestion }) {
 
 				<div className="mt-3 flex justify-end">
 					<button
-						className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
-							allAnswered
-								? "bg-slate-900 text-white hover:bg-slate-800"
-								: "cursor-not-allowed bg-slate-100 text-slate-400"
-						}`}
+						className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${ allAnswered ? "inno-primary-button" : "cursor-not-allowed bg-[var(--inno-surface-muted)] text-[var(--inno-text-subtle)]" }`}
 						disabled={!allAnswered}
 						onClick={handleSubmit}
 					>

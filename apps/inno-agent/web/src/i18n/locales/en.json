@@ -213,7 +213,7 @@
 	"jobs": {
 		"title": "Scheduled Jobs",
 		"subtitle": "Recurring automations and reminders",
-		"newJob": "+ New",
+		"newJob": "New",
 		"empty": "No scheduled jobs.",
 		"lastRun": "Last run: {{time}}",
 		"nextRun": "Next: {{time}}",
@@ -389,6 +389,13 @@
 		"languageOptions": {
 			"zh-CN": "中文",
 			"en": "English"
+		},
+		"theme": "Theme",
+		"themeOptions": {
+			"light": "Light",
+			"warm": "Warm",
+			"ocean": "Ocean",
+			"innospark": "InnoSpark"
 		},
 		"channels": {
 			"title": "Channels",

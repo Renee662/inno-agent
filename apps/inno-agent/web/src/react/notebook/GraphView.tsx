@@ -330,21 +330,21 @@ export function GraphView() {
 
 	return (
 		<div className="relative flex h-full min-h-0 flex-col">
-			<div className="@container flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
-				<button className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 hover:bg-slate-100 hover:text-slate-950" onClick={fit} title={t("notebook.graph.fit")}>
+			<div className="@container flex items-center gap-2 border-b border-[var(--inno-border)] bg-[var(--inno-surface)] px-3 py-2 text-xs text-[var(--inno-text-muted)]">
+				<button className="inline-flex items-center gap-1 rounded-md border border-[var(--inno-border)] bg-[var(--inno-surface)] px-2 py-1 hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]" onClick={fit} title={t("notebook.graph.fit")}>
 					<Scan size={13} />
 					<span className="hidden @[680px]:inline">{t("notebook.graph.fit")}</span>
 				</button>
-				<button className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 hover:bg-slate-100 hover:text-slate-950" onClick={reLayout} title={t("notebook.graph.relayout")}>
+				<button className="inline-flex items-center gap-1 rounded-md border border-[var(--inno-border)] bg-[var(--inno-surface)] px-2 py-1 hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]" onClick={reLayout} title={t("notebook.graph.relayout")}>
 					<Shuffle size={13} />
 					<span className="hidden @[680px]:inline">{t("notebook.graph.relayout")}</span>
 				</button>
-				<button className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 hover:bg-slate-100 hover:text-slate-950" onClick={() => void notebookStore.loadGraph()} title={t("notebook.graph.refresh")}>
+				<button className="inline-flex items-center gap-1 rounded-md border border-[var(--inno-border)] bg-[var(--inno-surface)] px-2 py-1 hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]" onClick={() => void notebookStore.loadGraph()} title={t("notebook.graph.refresh")}>
 					<RefreshCw size={13} />
 					<span className="hidden @[680px]:inline">{t("notebook.graph.refresh")}</span>
 				</button>
 				<div className="mx-1 h-4 w-px bg-slate-200" />
-				<span className="text-slate-400">{t("notebook.graph.show")}</span>
+				<span className="text-[var(--inno-text-subtle)]">{t("notebook.graph.show")}</span>
 				{ALL_CATEGORIES.map((cat) => {
 					const active = visibleCategories.has(cat);
 					const color = TYPE_COLORS[cat];
@@ -355,8 +355,8 @@ export function GraphView() {
 							onClick={() => toggleCategory(cat)}
 							className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition ${
 								active
-									? "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-									: "border-slate-200 bg-slate-50 text-slate-400 line-through hover:bg-slate-100"
+									? "border-[var(--inno-border-strong)] bg-[var(--inno-surface)] text-[var(--inno-text)] hover:bg-[var(--inno-surface-muted)]"
+									: "border-[var(--inno-border)] bg-[var(--inno-surface-muted)] text-[var(--inno-text-subtle)] line-through hover:bg-[var(--inno-surface-muted)]"
 							}`}
 							title={t(`notebook.types.${cat}`)}
 						>
@@ -374,21 +374,21 @@ export function GraphView() {
 			</div>
 			<div ref={containerRef} className="relative min-h-0 flex-1 bg-[var(--inno-workspace-bg,#fafafa)]">
 				{displayNode ? (
-					<div className="absolute inset-x-0 top-0 z-10 flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-1.5 text-xs">
+					<div className="absolute inset-x-0 top-0 z-10 flex items-center gap-2 border-b border-[var(--inno-border)] bg-[var(--inno-surface)] px-3 py-1.5 text-xs">
 						<span
 							className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
 							style={{ backgroundColor: TYPE_COLORS[displayNode.type] ?? "#8b949e" }}
 						/>
-						<span className="truncate font-medium text-slate-950">{displayNode.title || displayNode.id}</span>
-						<span className="text-slate-400">{t(`notebook.types.${displayNode.type}`)}</span>
+						<span className="truncate font-medium text-[var(--inno-text)]">{displayNode.title || displayNode.id}</span>
+						<span className="text-[var(--inno-text-subtle)]">{t(`notebook.types.${displayNode.type}`)}</span>
 						{displayNode.tags.length > 0 ? (
-							<span className="truncate text-slate-400">
+							<span className="truncate text-[var(--inno-text-subtle)]">
 								{displayNode.tags.map((tag) => `#${tag}`).join(" ")}
 							</span>
 						) : null}
 						{displayNode.type !== "tag" ? (
 							<button
-								className="ml-auto shrink-0 rounded bg-slate-900 px-2 py-0.5 text-xs text-white hover:bg-slate-800"
+								className="ml-auto shrink-0 rounded inno-primary-button px-2 py-0.5 text-xs text-white"
 								onClick={() => void notebookStore.selectPage(displayNode.id)}
 							>
 								{t("notebook.inspector.openPage")}
@@ -398,13 +398,13 @@ export function GraphView() {
 				) : null}
 			</div>
 			{state.isLoading ? (
-				<div className="absolute inset-0 flex items-center justify-center bg-white/40 text-sm text-slate-500">
+				<div className="absolute inset-0 flex items-center justify-center bg-white/40 text-sm text-[var(--inno-text-muted)]">
 					<span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 					{t("common.loading")}
 				</div>
 			) : null}
 			{!state.isLoading && state.nodes.length === 0 ? (
-				<div className="absolute inset-0 flex items-center justify-center text-sm text-slate-500">
+				<div className="absolute inset-0 flex items-center justify-center text-sm text-[var(--inno-text-muted)]">
 					{t("notebook.graph.empty")}
 				</div>
 			) : null}

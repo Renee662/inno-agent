@@ -12,25 +12,25 @@ export function NodeInspector() {
 
 	if (!node) {
 		return (
-			<aside className="flex h-full flex-col overflow-y-auto border-l border-slate-200 bg-white p-3 text-sm text-slate-500">
-				<div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">{t("notebook.inspector.title")}</div>
+			<aside className="flex h-full flex-col overflow-y-auto border-l border-[var(--inno-border)] bg-[var(--inno-surface)] p-3 text-sm text-[var(--inno-text-muted)]">
+				<div className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--inno-text-muted)]">{t("notebook.inspector.title")}</div>
 				<p>{t("notebook.inspector.empty")}</p>
 			</aside>
 		);
 	}
 	return (
-		<aside className="flex h-full flex-col overflow-y-auto border-l border-slate-200 bg-white p-3">
-			<div className="mb-1 truncate text-sm font-medium text-slate-950">{node.title}</div>
-			<div className="mb-2 truncate text-xs text-slate-500">{node.id}</div>
-			<div className="mb-3 inline-block rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+		<aside className="flex h-full flex-col overflow-y-auto border-l border-[var(--inno-border)] bg-[var(--inno-surface)] p-3">
+			<div className="mb-1 truncate text-sm font-medium text-[var(--inno-text)]">{node.title}</div>
+			<div className="mb-2 truncate text-xs text-[var(--inno-text-muted)]">{node.id}</div>
+			<div className="mb-3 inline-block rounded bg-[var(--inno-surface-muted)] px-2 py-0.5 text-xs text-[var(--inno-text-muted)]">
 				{t(`notebook.types.${node.type}`)}
 			</div>
 			{node.tags.length > 0 ? (
 				<div className="mb-3">
-					<div className="mb-1 text-xs font-medium text-slate-500">{t("notebook.inspector.tags")}</div>
+					<div className="mb-1 text-xs font-medium text-[var(--inno-text-muted)]">{t("notebook.inspector.tags")}</div>
 					<div className="flex flex-wrap gap-1">
 						{node.tags.map((tag) => (
-							<span key={tag} className="rounded-full bg-blue-50 px-1.5 py-0.5 text-xs text-blue-700">
+							<span key={tag} className="rounded-full bg-[var(--inno-accent-soft)] px-1.5 py-0.5 text-xs text-[var(--inno-accent)]">
 								#{tag}
 							</span>
 						))}
@@ -38,7 +38,7 @@ export function NodeInspector() {
 				</div>
 			) : null}
 			<button
-				className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:opacity-50"
+				className="rounded-md inno-primary-button px-3 py-1.5 text-sm text-white disabled:opacity-50"
 				disabled={node.type === "tag"}
 				onClick={() => void notebookStore.selectPage(node.id)}
 			>
