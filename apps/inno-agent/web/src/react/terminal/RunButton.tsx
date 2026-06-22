@@ -32,7 +32,7 @@ export function RunButton({ filePath, className }: RunButtonProps) {
 			onClick={handleClick}
 			className={
 				className ??
-				"flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 transition-colors hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+				"flex h-7 items-center gap-1 rounded-md border border-[var(--inno-border)] bg-[var(--inno-surface)] px-2 text-xs font-medium text-[var(--inno-text)] transition-colors hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
 			}
 			title={`Run: ${command}`}
 		>

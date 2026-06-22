@@ -63,11 +63,11 @@ export function TerminalDrawer() {
 	}, [sess.currentSessionId, ws.activeWorkspaceId]);
 
 	return (
-		<div className={`flex flex-col border-t border-slate-200 bg-[var(--inno-workspace-bg)] ${term.isOpen ? "min-h-[220px]" : ""}`}>
-			<div className="flex h-8 items-center gap-2 border-b border-slate-200 bg-[var(--inno-workspace-chrome)] px-2 text-xs text-slate-600">
+		<div className={`flex flex-col border-t border-[var(--inno-border)] bg-[var(--inno-workspace-bg)] ${term.isOpen ? "min-h-[220px]" : ""}`}>
+			<div className="flex h-8 items-center gap-2 border-b border-[var(--inno-border)] bg-[var(--inno-workspace-chrome)] px-2 text-xs text-[var(--inno-text-muted)]">
 				<button
 					onClick={toggle}
-					className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-slate-500 transition-colors hover:bg-white hover:text-slate-900"
+					className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[var(--inno-text-muted)] transition-colors hover:bg-[var(--inno-surface)] hover:text-[var(--inno-text)]"
 					title={term.isOpen ? "收起终端" : "展开终端"}
 				>
 					<TerminalIcon size={12} />
@@ -79,21 +79,21 @@ export function TerminalDrawer() {
 					title={STATUS_LABEL[term.status]}
 					aria-label={STATUS_LABEL[term.status]}
 				/>
-				{term.cwd ? <span className="truncate text-[11px] text-slate-400" title={term.cwd}>{term.cwd}</span> : null}
+				{term.cwd ? <span className="truncate text-[11px] text-[var(--inno-text-subtle)]" title={term.cwd}>{term.cwd}</span> : null}
 				{term.error ? <span className="text-[11px] text-red-600">{term.error}</span> : null}
 				<div className="ml-auto flex items-center gap-1">
 					{term.isOpen && sess.currentSessionId ? (
 						<>
 							<button
 								onClick={toggleHistory}
-								className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors ${showHistory ? "bg-white text-slate-900 ring-1 ring-slate-200" : "text-slate-400 hover:bg-white hover:text-slate-700"}`}
+								className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors ${showHistory ? "bg-[var(--inno-surface)] text-[var(--inno-text)] ring-1 ring-slate-200" : "text-[var(--inno-text-subtle)] hover:bg-[var(--inno-surface)] hover:text-[var(--inno-text)]"}`}
 								title="历史"
 							>
 								<History size={12} />
 							</button>
 							<button
 								onClick={() => void restart()}
-								className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white hover:text-slate-700"
+								className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--inno-text-subtle)] transition-colors hover:bg-[var(--inno-surface)] hover:text-[var(--inno-text)]"
 								title="重启终端"
 							>
 								<RotateCcw size={12} />
@@ -110,7 +110,7 @@ export function TerminalDrawer() {
 						</div>
 					) : (
 						<div className="flex-1 min-h-0 p-2">
-							<div className="h-full overflow-hidden rounded-md border border-slate-200 bg-[#0f172a] p-1.5 shadow-inner">
+							<div className="h-full overflow-hidden rounded-md border border-[var(--inno-border)] bg-[#0f172a] p-1.5 shadow-inner">
 								<TerminalView
 									key={`${sess.currentSessionId}:${ws.activeWorkspaceId ?? "default"}`}
 									innoSessionId={sess.currentSessionId}
@@ -121,7 +121,7 @@ export function TerminalDrawer() {
 						</div>
 					)
 				) : (
-					<div className="flex h-[120px] items-center justify-center text-xs text-slate-500">
+					<div className="flex h-[120px] items-center justify-center text-xs text-[var(--inno-text-muted)]">
 						请先打开或新建一个会话
 					</div>
 				)

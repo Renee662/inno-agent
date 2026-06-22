@@ -1,0 +1,97 @@
+/*
+ * Theme presets — each [data-theme] block overrides the --inno-* variables.
+ * :root in app.css provides the fallback (= light theme).
+ */
+
+/* ─── Light (default) ─── */
+:root[data-theme="light"] {
+	--inno-background: #f7f8fa;
+	--inno-surface: #ffffff;
+	--inno-surface-muted: #f3f4f6;
+	--inno-surface-raised: #fafafa;
+	--inno-sidebar-bg: #eceff3;
+	--inno-sidebar-active: #dde2e8;
+	--inno-chat-bg: #ffffff;
+	--inno-workspace-bg: #f8fafc;
+	--inno-workspace-chrome: #f1f5f9;
+	--inno-border: #e5e7eb;
+	--inno-border-strong: #c9d0d9;
+	--inno-text: #171a1f;
+	--inno-text-muted: #667085;
+	--inno-text-subtle: #8a94a3;
+	--inno-accent: #2563eb;
+	--inno-accent-soft: #dbeafe;
+	--inno-tech: #06b6d4;
+	--inno-success: #16a34a;
+	--inno-warning: #d97706;
+	--inno-danger: #dc2626;
+	--inno-shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 28px rgba(15, 23, 42, 0.04);
+	--inno-ring: 0 0 0 3px rgba(37, 99, 235, 0.13);
+	--inno-scrollbar-thumb: rgba(0, 0, 0, 0.12);
+	--inno-scrollbar-thumb-hover: rgba(0, 0, 0, 0.22);
+	--inno-selection-bg: rgba(37, 99, 235, 0.15);
+	--inno-grid-color: rgba(37, 99, 235, 0.035);
+	color-scheme: light;
+}
+
+/* ─── Warm ─── */
+:root[data-theme="warm"] {
+	--inno-background: #faf8f5;
+	--inno-surface: #fffefa;
+	--inno-surface-muted: #f5f0ea;
+	--inno-surface-raised: #faf6f1;
+	--inno-sidebar-bg: #f0ebe4;
+	--inno-sidebar-active: #e6dfd6;
+	--inno-chat-bg: #fffefa;
+	--inno-workspace-bg: #faf7f3;
+	--inno-workspace-chrome: #f3ede6;
+	--inno-border: #e5ddd4;
+	--inno-border-strong: #d4c9bc;
+	--inno-text: #2c2418;
+	--inno-text-muted: #7a6b5a;
+	--inno-text-subtle: #9a8b7a;
+	--inno-accent: #d97706;
+	--inno-accent-soft: rgba(217, 119, 6, 0.12);
+	--inno-tech: #0d9488;
+	--inno-success: #16a34a;
+	--inno-warning: #ca8a04;
+	--inno-danger: #dc2626;
+	--inno-shadow-soft: 0 1px 2px rgba(44, 36, 24, 0.05), 0 10px 28px rgba(44, 36, 24, 0.04);
+	--inno-ring: 0 0 0 3px rgba(217, 119, 6, 0.13);
+	--inno-scrollbar-thumb: rgba(44, 36, 24, 0.12);
+	--inno-scrollbar-thumb-hover: rgba(44, 36, 24, 0.22);
+	--inno-selection-bg: rgba(217, 119, 6, 0.12);
+	--inno-grid-color: rgba(217, 119, 6, 0.035);
+	color-scheme: light;
+}
+
+/* ─── Ocean ─── */
+:root[data-theme="ocean"] {
+	--inno-background: #f0f4f8;
+	--inno-surface: #f8fafb;
+	--inno-surface-muted: #e8eef4;
+	--inno-surface-raised: #f2f6f9;
+	--inno-sidebar-bg: #e4ebf2;
+	--inno-sidebar-active: #d6e0ea;
+	--inno-chat-bg: #f8fafb;
+	--inno-workspace-bg: #f2f6f9;
+	--inno-workspace-chrome: #e8eef4;
+	--inno-border: #d0dae4;
+	--inno-border-strong: #b8c8d6;
+	--inno-text: #1a2c3d;
+	--inno-text-muted: #5a7088;
+	--inno-text-subtle: #7a92a8;
+	--inno-accent: #0d9488;
+	--inno-accent-soft: rgba(13, 148, 136, 0.12);
+	--inno-tech: #0891b2;
+	--inno-success: #059669;
+	--inno-warning: #d97706;
+	--inno-danger: #dc2626;
+	--inno-shadow-soft: 0 1px 2px rgba(26, 44, 61, 0.05), 0 10px 28px rgba(26, 44, 61, 0.04);
+	--inno-ring: 0 0 0 3px rgba(13, 148, 136, 0.13);
+	--inno-scrollbar-thumb: rgba(26, 44, 61, 0.12);
+	--inno-scrollbar-thumb-hover: rgba(26, 44, 61, 0.22);
+	--inno-selection-bg: rgba(13, 148, 136, 0.12);
+	--inno-grid-color: rgba(13, 148, 136, 0.035);
+	color-scheme: light;
+}

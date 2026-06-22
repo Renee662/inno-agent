@@ -1,5 +1,6 @@
 @import "@earendil-works/pi-web-ui/app.css";
 @import "tailwindcss";
+@import "./themes.css";
 
 :root {
 	--inno-background: #f7f8fa;

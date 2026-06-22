@@ -147,6 +147,9 @@ export interface InnoConfig {
 	subagents?: InnoSubagentsConfig;
 	memory?: InnoMemoryConfig;
 	simpleMode?: InnoSimpleModeConfig;
+	ui?: {
+		theme: string;
+	};
 }
 
 interface LegacyInnoConfig extends Partial<InnoConfig> {
@@ -268,6 +271,7 @@ export function normalizeConfig(config: LegacyInnoConfig): InnoConfig {
 		subagents: config.subagents,
 		memory: normalizeMemoryConfig(config.memory),
 		simpleMode: normalizeSimpleModeConfig(config.simpleMode),
+		ui: config.ui,
 	} as InnoConfig;
 }
 

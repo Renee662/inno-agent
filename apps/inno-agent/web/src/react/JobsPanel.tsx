@@ -165,11 +165,11 @@ export function JobsPanel() {
 
 	return (
 		<div className="flex h-full flex-col p-3">
-			<div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white">
-				<div className="flex items-center justify-between border-b border-slate-200 px-3 py-3">
+			<div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)]">
+				<div className="flex items-center justify-between border-b border-[var(--inno-border)] px-3 py-3">
 					<div>
-						<h3 className="text-sm font-medium text-slate-950">{t("jobs.title")}</h3>
-						<p className="text-xs text-slate-500">{t("jobs.subtitle")}</p>
+						<h3 className="text-sm font-medium text-[var(--inno-text)]">{t("jobs.title")}</h3>
+						<p className="text-xs text-[var(--inno-text-muted)]">{t("jobs.subtitle")}</p>
 					</div>
 					<button className="flex items-center gap-1 rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800" onClick={openNewForm}>
 						<Plus size={14} />
@@ -179,33 +179,33 @@ export function JobsPanel() {
 
 				<div className="min-h-0 flex-1 overflow-y-auto p-3">
 					{state.isLoading ? (
-						<div className="flex items-center justify-center py-8 text-slate-500">
+						<div className="flex items-center justify-center py-8 text-[var(--inno-text-muted)]">
 							<span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 							{t("common.loading")}
 						</div>
 					) : null}
 					{!state.isLoading && state.jobs.length === 0 ? (
-						<p className="py-8 text-center text-sm text-slate-500">{t("jobs.empty")}</p>
+						<p className="py-8 text-center text-sm text-[var(--inno-text-muted)]">{t("jobs.empty")}</p>
 					) : null}
 					<div className="flex flex-col gap-2">
 						{state.jobs.map((job) => {
 							const isRunning = state.runningJobId === job.id;
 							const human = humanizeCron(job.cron, humanI18n);
 							return (
-								<div key={job.id} className={`rounded-lg border border-slate-200 bg-white p-3 ${job.enabled ? "" : "opacity-60"}`}>
+								<div key={job.id} className={`rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)] p-3 ${job.enabled ? "" : "opacity-60"}`}>
 									<div className="flex items-start justify-between gap-2">
 										<div className="min-w-0 flex-1">
-											<div className="truncate text-sm font-medium text-slate-950">{job.name}</div>
-											<div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-												<span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-700">{human}</span>
-												<span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-600">
+											<div className="truncate text-sm font-medium text-[var(--inno-text)]">{job.name}</div>
+											<div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--inno-text-muted)]">
+												<span className="rounded bg-[var(--inno-surface-muted)] px-1.5 py-0.5 text-[var(--inno-text)]">{human}</span>
+												<span className="rounded bg-[var(--inno-surface-muted)] px-1.5 py-0.5 text-[var(--inno-text-muted)]">
 													{t(`jobs.taskTypes.${job.taskType}`)}
 												</span>
 												<span className={job.enabled ? "text-green-600" : "text-red-500"}>
 													{job.enabled ? t("common.enabled") : t("common.disabled")}
 												</span>
 											</div>
-											<div className="mt-1 text-xs text-slate-500">
+											<div className="mt-1 text-xs text-[var(--inno-text-muted)]">
 												{t("jobs.lastRun", { time: job.lastRunAt ? formatDate(job.lastRunAt) : t("jobs.never") })}
 												{job.nextRunAt ? ` · ${t("jobs.nextRun", { time: formatDate(job.nextRunAt) })}` : ""}
 											</div>
@@ -223,7 +223,7 @@ export function JobsPanel() {
 											{isRunning ? t("jobs.actions.running") : t("jobs.actions.run")}
 										</button>
 										<button
-											className="flex items-center gap-1 rounded bg-slate-100 px-2 py-1 text-xs text-slate-500 hover:bg-slate-200 hover:text-slate-950"
+											className="flex items-center gap-1 rounded bg-[var(--inno-surface-muted)] px-2 py-1 text-xs text-[var(--inno-text-muted)] hover:bg-slate-200 hover:text-[var(--inno-text)]"
 											title={t("jobs.actions.edit")}
 											onClick={() => openEditForm(job)}
 										>
@@ -231,7 +231,7 @@ export function JobsPanel() {
 											{t("jobs.actions.edit")}
 										</button>
 										<button
-											className="flex items-center gap-1 rounded bg-slate-100 px-2 py-1 text-xs text-slate-500 hover:bg-slate-200 hover:text-slate-950"
+											className="flex items-center gap-1 rounded bg-[var(--inno-surface-muted)] px-2 py-1 text-xs text-[var(--inno-text-muted)] hover:bg-slate-200 hover:text-[var(--inno-text)]"
 											title={job.enabled ? t("jobs.actions.disable") : t("jobs.actions.enable")}
 											onClick={() => void jobsStore.update(job.id, { enabled: !job.enabled })}
 										>
@@ -254,9 +254,9 @@ export function JobsPanel() {
 				</div>
 
 				{state.lastRunResult ? (
-					<div className="border-t border-slate-200 p-3">
-						<div className="mb-1 text-xs font-medium text-slate-950">{t("jobs.lastResult")}</div>
-						<pre className="max-h-32 overflow-y-auto whitespace-pre-wrap rounded bg-slate-50 p-2 text-xs text-slate-700">{state.lastRunResult}</pre>
+					<div className="border-t border-[var(--inno-border)] p-3">
+						<div className="mb-1 text-xs font-medium text-[var(--inno-text)]">{t("jobs.lastResult")}</div>
+						<pre className="max-h-32 overflow-y-auto whitespace-pre-wrap rounded bg-[var(--inno-surface-muted)] p-2 text-xs text-[var(--inno-text)]">{state.lastRunResult}</pre>
 					</div>
 				) : null}
 			</div>
@@ -270,20 +270,20 @@ export function JobsPanel() {
 					onClick={() => setShowForm(false)}
 				>
 					<motion.div
-						className="max-h-[85vh] w-[460px] overflow-y-auto rounded-xl bg-white p-5 shadow-xl"
+						className="max-h-[85vh] w-[460px] overflow-y-auto rounded-xl bg-[var(--inno-surface)] p-5 shadow-xl"
 						initial={{ opacity: 0, scale: 0.95 }}
 						animate={{ opacity: 1, scale: 1 }}
 						transition={{ duration: 0.2, ease: "easeOut" }}
 						onClick={(event) => event.stopPropagation()}
 					>
-						<h3 className="mb-4 text-base font-medium text-slate-950">
+						<h3 className="mb-4 text-base font-medium text-[var(--inno-text)]">
 							{editingJob ? t("jobs.form.editTitle") : t("jobs.form.newTitle")}
 						</h3>
 						<div className="flex flex-col gap-3">
 							<label className="block text-sm">
-								<span className="mb-1 block font-medium text-slate-700">{t("jobs.form.name")}</span>
+								<span className="mb-1 block font-medium text-[var(--inno-text)]">{t("jobs.form.name")}</span>
 								<input
-									className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100"
+									className="w-full rounded-md border border-[var(--inno-border)] bg-[var(--inno-surface)] px-3 py-2 text-sm focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100"
 									placeholder={t("jobs.form.namePlaceholder") ?? ""}
 									value={form.name}
 									onChange={(event) => setForm({ ...form, name: event.target.value })}
@@ -291,21 +291,21 @@ export function JobsPanel() {
 							</label>
 
 							<div className="block text-sm">
-								<span className="mb-1 block font-medium text-slate-700">{t("jobs.form.schedule")}</span>
+								<span className="mb-1 block font-medium text-[var(--inno-text)]">{t("jobs.form.schedule")}</span>
 								<ScheduleEditor
 									value={form.schedule}
 									onChange={(schedule) => setForm({ ...form, schedule })}
 								/>
-								<div className="mt-1 text-xs text-slate-500">
+								<div className="mt-1 text-xs text-[var(--inno-text-muted)]">
 									<span className="font-mono">{previewCron || "-"}</span>
 									{previewLabel ? <span className="ml-2">· {previewLabel}</span> : null}
 								</div>
 							</div>
 
 							<label className="block text-sm">
-								<span className="mb-1 block font-medium text-slate-700">{t("jobs.form.taskType")}</span>
+								<span className="mb-1 block font-medium text-[var(--inno-text)]">{t("jobs.form.taskType")}</span>
 								<select
-									className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100"
+									className="w-full rounded-md border border-[var(--inno-border)] bg-[var(--inno-surface)] px-3 py-2 text-sm focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100"
 									value={form.taskType}
 									onChange={(event) => setForm({ ...form, taskType: event.target.value as TaskType })}
 								>
@@ -318,16 +318,16 @@ export function JobsPanel() {
 							</label>
 
 							<label className="block text-sm">
-								<span className="mb-1 block font-medium text-slate-700">{t("jobs.form.prompt")}</span>
+								<span className="mb-1 block font-medium text-[var(--inno-text)]">{t("jobs.form.prompt")}</span>
 								<textarea
-									className="h-24 w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100"
+									className="h-24 w-full resize-none rounded-md border border-[var(--inno-border)] bg-[var(--inno-surface)] px-3 py-2 text-sm focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100"
 									placeholder={t("jobs.form.promptPlaceholder") ?? ""}
 									value={form.prompt}
 									onChange={(event) => setForm({ ...form, prompt: event.target.value })}
 								/>
 							</label>
 
-							<label className="flex items-center gap-2 text-sm text-slate-700">
+							<label className="flex items-center gap-2 text-sm text-[var(--inno-text)]">
 								<input
 									type="checkbox"
 									checked={form.enabled}
@@ -339,7 +339,7 @@ export function JobsPanel() {
 						<div className="mt-4 flex justify-end gap-2">
 							{formError ? <div className="mr-auto text-xs text-red-600">{formError}</div> : null}
 							<button
-								className="rounded-md bg-slate-100 px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-200 hover:text-slate-950 disabled:opacity-50"
+								className="rounded-md bg-[var(--inno-surface-muted)] px-3 py-1.5 text-sm text-[var(--inno-text-muted)] hover:bg-slate-200 hover:text-[var(--inno-text)] disabled:opacity-50"
 								disabled={isSaving}
 								onClick={() => setShowForm(false)}
 							>

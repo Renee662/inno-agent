@@ -95,7 +95,7 @@ export function WorkspacePanel({ activeTab, mode, width, onTabChange, onModeChan
 		return (
 			<aside className="relative h-full w-0 overflow-visible">
 				<button
-					className="absolute right-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/90 hover:text-slate-700 hover:shadow-sm"
+					className="absolute right-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-lg text-[var(--inno-text-subtle)] transition-colors hover:bg-white/90 hover:text-[var(--inno-text)] hover:shadow-sm"
 					title={t("workspace.openWorkspace") ?? ""}
 					onClick={() => onModeChange("half")}
 				>
@@ -118,7 +118,7 @@ export function WorkspacePanel({ activeTab, mode, width, onTabChange, onModeChan
 				/>
 			) : null}
 
-			<div className="flex h-10 items-center gap-1 border-b border-slate-200 bg-[var(--inno-workspace-chrome)] px-2">
+			<div className="flex h-10 items-center gap-1 border-b border-[var(--inno-border)] bg-[var(--inno-workspace-chrome)] px-2">
 				<div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden">
 					{tabs.map((tab) => {
 						const label = t(`workspace.tabs.${tab}`);
@@ -126,7 +126,7 @@ export function WorkspacePanel({ activeTab, mode, width, onTabChange, onModeChan
 						return (
 							<button
 								key={tab}
-								className={`inno-workspace-tab flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-md transition-colors ${compact ? "w-7 justify-center px-0" : "px-2"} ${isActive ? "bg-white font-medium text-blue-700 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:bg-white hover:text-slate-950"}`}
+								className={`inno-workspace-tab flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-md transition-colors ${compact ? "w-7 justify-center px-0" : "px-2"} ${isActive ? "bg-[var(--inno-surface)] font-medium text-[var(--inno-accent)] shadow-sm ring-1 ring-slate-200" : "text-[var(--inno-text-muted)] hover:bg-[var(--inno-surface)] hover:text-[var(--inno-text)]"}`}
 								title={compact ? label : undefined}
 								aria-label={compact ? label : undefined}
 								onClick={() => onTabChange(tab)}
@@ -137,16 +137,16 @@ export function WorkspacePanel({ activeTab, mode, width, onTabChange, onModeChan
 						);
 					})}
 				</div>
-				<div className="ml-1 flex shrink-0 items-center gap-1 border-l border-slate-200 pl-1">
+				<div className="ml-1 flex shrink-0 items-center gap-1 border-l border-[var(--inno-border)] pl-1">
 					<button
-						className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white hover:text-slate-600"
+						className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--inno-text-subtle)] transition-colors hover:bg-[var(--inno-surface)] hover:text-[var(--inno-text-muted)]"
 						title={mode === "full" ? (t("workspace.half") ?? "") : (t("workspace.full") ?? "")}
 						onClick={() => onModeChange(mode === "full" ? "half" : "full")}
 					>
 						{mode === "full" ? <Columns2 size={14} /> : <Maximize2 size={14} />}
 					</button>
 					<button
-						className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white hover:text-slate-600"
+						className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--inno-text-subtle)] transition-colors hover:bg-[var(--inno-surface)] hover:text-[var(--inno-text-muted)]"
 						title={t("workspace.collapse") ?? ""}
 						onClick={() => onModeChange("collapsed")}
 					>
