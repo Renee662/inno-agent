@@ -234,11 +234,7 @@ export function QuestionDialog({ pending }: { pending: PendingQuestion }) {
 
 				<div className="mt-3 flex justify-end">
 					<button
-						className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
-							allAnswered
-								? "bg-slate-900 text-white hover:bg-slate-800"
-								: "cursor-not-allowed bg-[var(--inno-surface-muted)] text-[var(--inno-text-subtle)]"
-						}`}
+						className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${ allAnswered ? "inno-primary-button" : "cursor-not-allowed bg-[var(--inno-surface-muted)] text-[var(--inno-text-subtle)]" }`}
 						disabled={!allAnswered}
 						onClick={handleSubmit}
 					>

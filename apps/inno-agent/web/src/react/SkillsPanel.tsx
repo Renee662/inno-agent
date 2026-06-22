@@ -141,7 +141,9 @@ function SkillFileNode({ node, style, dragHandle }: NodeRendererProps<ArboristNo
 			ref={dragHandle}
 			style={style}
 			className={`group flex items-center gap-1.5 rounded-md px-2 py-1 text-xs cursor-pointer select-none ${
-				selected ? "bg-[var(--inno-accent-soft)] text-[var(--inno-accent)] ring-1 ring-blue-100" : "text-[var(--inno-text-muted)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]"
+				selected
+					? "bg-[var(--inno-accent-soft)] text-[var(--inno-accent)] ring-1 ring-blue-100"
+					: "text-[var(--inno-text-muted)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]"
 			}`}
 			onClick={(e) => {
 				e.stopPropagation();
@@ -192,7 +194,7 @@ function SkillFilePane({ skillName, onToggleSidebar, sidebarOpen }: { skillName:
 						</div>
 					</div>
 					<div className="flex items-center gap-1.5">
-						<button disabled={state.isSaving} className="flex h-7 items-center gap-1 rounded-md bg-slate-900 px-2.5 text-xs text-white hover:bg-slate-800 disabled:opacity-50" onClick={() => void skillsStore.saveFile()}>
+						<button disabled={state.isSaving} className="flex h-7 items-center gap-1 rounded-md inno-primary-button px-2.5 text-xs text-white disabled:opacity-50" onClick={() => void skillsStore.saveFile()}>
 							<Save size={12} /> {t("common.save", "Save")}
 						</button>
 						<button disabled={state.isSaving} className="flex h-7 items-center gap-1 rounded-md border border-[var(--inno-border)] px-2.5 text-xs text-[var(--inno-text-muted)] hover:bg-[var(--inno-surface-muted)] disabled:opacity-50" onClick={() => skillsStore.cancelEditing()}>
@@ -433,7 +435,7 @@ function SkillLibraryModal({ onClose }: { onClose: () => void }) {
 									) : (
 										<button
 											disabled={isImporting}
-											className="flex h-7 shrink-0 items-center gap-1 rounded-md bg-slate-900 px-2.5 text-xs text-white hover:bg-slate-800 disabled:opacity-50"
+											className="flex h-7 shrink-0 items-center gap-1 rounded-md inno-primary-button px-2.5 text-xs text-white disabled:opacity-50"
 											onClick={() => void skillsStore.importFromLibrary(item.name)}
 										>
 											<Download size={12} />
@@ -504,7 +506,7 @@ export function SkillsPanel() {
 						<button className="flex h-7 items-center gap-1 rounded-md border border-[var(--inno-border)] px-2.5 text-xs text-[var(--inno-text-muted)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]" onClick={() => void skillsStore.reload()}>
 							<RefreshCw size={13} />
 						</button>
-						<button className="flex h-7 items-center gap-1 rounded-md bg-slate-900 px-2.5 text-xs text-white hover:bg-slate-800 disabled:opacity-50" disabled={state.isUploading} onClick={() => uploadRef.current?.click()}>
+						<button className="flex h-7 items-center gap-1 rounded-md inno-primary-button px-2.5 text-xs text-white disabled:opacity-50" disabled={state.isUploading} onClick={() => uploadRef.current?.click()}>
 							<Upload size={13} />
 							{state.isUploading ? t("skills.uploading") : t("skills.upload")}
 						</button>

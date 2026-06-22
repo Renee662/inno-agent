@@ -213,7 +213,7 @@
 	"jobs": {
 		"title": "定时任务",
 		"subtitle": "自动复习、推送提醒等周期任务",
-		"newJob": "+ 新建",
+		"newJob": "新建",
 		"empty": "还没有定时任务。",
 		"lastRun": "上次运行：{{time}}",
 		"nextRun": "下次运行：{{time}}",

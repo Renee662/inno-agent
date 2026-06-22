@@ -95,7 +95,7 @@ export function PageView() {
 					/>
 				</div>
 				<div className="flex gap-2 border-t border-[var(--inno-border)] p-3">
-					<button className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800" onClick={() => void notebookStore.savePage()}>
+					<button className="rounded-md inno-primary-button px-3 py-1.5 text-sm text-white" onClick={() => void notebookStore.savePage()}>
 						{t("common.save")}
 					</button>
 					<button className="rounded-md bg-[var(--inno-surface-muted)] px-3 py-1.5 text-sm text-[var(--inno-text-muted)] hover:bg-slate-200 hover:text-[var(--inno-text)]" onClick={() => notebookStore.cancelEditing()}>
@@ -113,7 +113,7 @@ export function PageView() {
 				<markdown-artifact content={parsed.body} />
 			</div>
 			<div className="flex gap-2 border-t border-[var(--inno-border)] p-3">
-				<button className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800" onClick={() => notebookStore.startEditing()}>
+				<button className="rounded-md inno-primary-button px-3 py-1.5 text-sm text-white" onClick={() => notebookStore.startEditing()}>
 					{t("common.edit")}
 				</button>
 				<button className="rounded-md bg-[var(--inno-surface-muted)] px-3 py-1.5 text-sm text-[var(--inno-text-muted)] hover:bg-slate-200 hover:text-[var(--inno-text)]" onClick={() => notebookStore.setView("graph")}>

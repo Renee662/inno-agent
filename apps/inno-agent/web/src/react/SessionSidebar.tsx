@@ -107,16 +107,16 @@ function orderedSessionChannels(session: SessionMeta): Array<{ channel: SessionC
 
 function channelFilterClass(channel: SessionChannel | null, active: boolean): string {
 	if (!active) return "bg-[var(--inno-surface)] text-[var(--inno-text-muted)] ring-1 ring-slate-200 hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)] hover:ring-slate-300";
-	if (!channel) return "bg-slate-800 text-white ring-1 ring-slate-800 hover:bg-slate-800 hover:text-white";
+	if (!channel) return "inno-primary-button ring-1 ring-[var(--inno-accent)]";
 	const map: Record<string, string> = {
 		cli: "bg-[var(--inno-accent)] text-white ring-1 ring-blue-600 hover:bg-[var(--inno-accent)] hover:text-white",
-		web: "bg-slate-900 text-white ring-1 ring-slate-900 hover:bg-slate-900 hover:text-white",
+		web: "inno-primary-button ring-1 ring-[var(--inno-accent)]",
 		feishu: "bg-emerald-600 text-white ring-1 ring-emerald-600 hover:bg-emerald-600 hover:text-white",
 		scheduler: "bg-amber-600 text-white ring-1 ring-amber-600 hover:bg-amber-600 hover:text-white",
 		qq: "bg-cyan-600 text-white ring-1 ring-cyan-600 hover:bg-cyan-600 hover:text-white",
 		wechat: "bg-lime-600 text-white ring-1 ring-lime-600 hover:bg-lime-600 hover:text-white",
 	};
-	return map[channel] ?? "bg-slate-700 text-white ring-1 ring-slate-700 hover:bg-slate-700 hover:text-white";
+	return map[channel] ?? "inno-primary-button ring-1 ring-[var(--inno-accent)]";
 }
 
 /* ── Workspace group definition ── */
@@ -731,7 +731,7 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 				{/* Footer: new chat (mode switch lives on the IA logo above) */}
 				<div className="border-t border-slate-200/70 p-2">
 					<button
-						className="inno-sidebar-text flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800 px-3 py-1.5 font-medium text-white shadow-sm transition-colors hover:bg-slate-700"
+						className="inno-sidebar-text flex w-full items-center justify-center gap-2 rounded-lg inno-primary-button px-3 py-1.5 font-medium text-white shadow-sm transition-colors"
 						onClick={newChat}
 					>
 						<Plus size={14} /> 新建对话
@@ -939,7 +939,7 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 			{/* Footer */}
 			<div className="border-t border-slate-200/70 p-2">
 				<button
-					className="inno-sidebar-text flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800 px-3 py-1.5 font-medium text-white shadow-sm transition-colors hover:bg-slate-700"
+					className="inno-sidebar-text flex w-full items-center justify-center gap-2 rounded-lg inno-primary-button px-3 py-1.5 font-medium text-white shadow-sm transition-colors"
 					onClick={newChat}
 				>
 					<Plus size={14} /> 新建对话

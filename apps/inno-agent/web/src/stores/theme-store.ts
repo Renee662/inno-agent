@@ -2,13 +2,13 @@ import { EventEmitter } from "./event-emitter.js";
 
 export type ThemeId = "light" | "warm" | "ocean" | "innospark";
 
-export const THEME_IDS: ThemeId[] = ["light", "warm", "ocean", "innospark"];
+export const THEME_IDS: ThemeId[] = ["light", "innospark", "warm", "ocean"];
 const DARK_THEMES: Set<ThemeId> = new Set();
 const STORAGE_KEY = "inno.theme";
 
 /** Preview swatch colors for the theme picker UI. */
 export const THEME_PREVIEW_COLORS: Record<ThemeId, string> = {
-	light: "#ffffff",
+	light: "#f1f1f2",
 	warm: "#faf8f5",
 	ocean: "#f0f4f8",
 	innospark: "#555aff",

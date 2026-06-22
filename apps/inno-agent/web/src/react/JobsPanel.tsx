@@ -171,7 +171,7 @@ export function JobsPanel() {
 						<h3 className="text-sm font-medium text-[var(--inno-text)]">{t("jobs.title")}</h3>
 						<p className="text-xs text-[var(--inno-text-muted)]">{t("jobs.subtitle")}</p>
 					</div>
-					<button className="flex items-center gap-1 rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800" onClick={openNewForm}>
+					<button className="flex items-center gap-1 rounded-md inno-primary-button px-3 py-1.5 text-sm text-white" onClick={openNewForm}>
 						<Plus size={14} />
 						{t("jobs.newJob")}
 					</button>
@@ -214,7 +214,7 @@ export function JobsPanel() {
 
 									<div className="mt-2 flex flex-wrap gap-1.5">
 										<button
-											className={`flex items-center gap-1 rounded bg-slate-900 px-2 py-1 text-xs text-white hover:bg-slate-800 ${isRunning ? "cursor-wait opacity-50" : ""}`}
+											className={`flex items-center gap-1 rounded inno-primary-button px-2 py-1 text-xs text-white ${isRunning ? "cursor-wait opacity-50" : ""}`}
 											disabled={isRunning}
 											title={t("jobs.actions.run")}
 											onClick={() => void jobsStore.run(job.id)}
@@ -346,7 +346,7 @@ export function JobsPanel() {
 								{t("common.cancel")}
 							</button>
 							<button
-								className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:opacity-50"
+								className="rounded-md inno-primary-button px-3 py-1.5 text-sm text-white disabled:opacity-50"
 								disabled={isSaving}
 								onClick={() => void saveForm()}
 							>

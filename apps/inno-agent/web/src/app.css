@@ -3,29 +3,31 @@
 @import "./themes.css";
 
 :root {
-	--inno-background: #f7f8fa;
+	--inno-background: #f7f7f8;
 	--inno-surface: #ffffff;
-	--inno-surface-muted: #f3f4f6;
-	--inno-surface-raised: #fafafa;
-	--inno-sidebar-bg: #eceff3;
-	--inno-sidebar-active: #dde2e8;
+	--inno-surface-muted: #f1f1f2;
+	--inno-surface-raised: #fbfbfb;
+	--inno-sidebar-bg: #f3f4f4;
+	--inno-sidebar-active: #e8e8e9;
 	--inno-chat-bg: #ffffff;
-	--inno-workspace-bg: #f8fafc;
-	--inno-workspace-chrome: #f1f5f9;
-	--inno-border: #e5e7eb;
-	--inno-border-strong: #c9d0d9;
-	--inno-text: #171a1f;
-	--inno-text-muted: #667085;
-	--inno-text-subtle: #8a94a3;
-	--inno-accent: #2563eb;
-	--inno-accent-soft: #dbeafe;
-	--inno-tech: #06b6d4;
+	--inno-workspace-bg: #f8f8f8;
+	--inno-workspace-chrome: #f1f1f2;
+	--inno-border: #e3e3e4;
+	--inno-border-strong: #c8c8ca;
+	--inno-text: #202123;
+	--inno-text-muted: #6f7377;
+	--inno-text-subtle: #92969a;
+	--inno-accent: #34363a;
+	--inno-accent-soft: #ededee;
+	--inno-tech: #111827;
 	--inno-success: #16a34a;
 	--inno-warning: #d97706;
 	--inno-danger: #dc2626;
 	--inno-workspace-width: 520px;
-	--inno-shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 28px rgba(15, 23, 42, 0.04);
-	--inno-ring: 0 0 0 3px rgba(37, 99, 235, 0.13);
+	--inno-shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 28px rgba(0, 0, 0, 0.035);
+	--inno-ring: 0 0 0 3px rgba(52, 54, 58, 0.14);
+	--inno-selection-bg: rgba(52, 54, 58, 0.12);
+	--inno-grid-color: rgba(32, 33, 35, 0.025);
 	color: var(--inno-text);
 	background: var(--inno-background);
 	font-synthesis-weight: none;
@@ -289,6 +291,32 @@ inno-workspace-panel textarea {
 	transform: translateY(1px);
 }
 
+.inno-primary-button,
+.inno-primary-icon-button {
+	border-color: transparent;
+	background: var(--inno-accent);
+	color: #ffffff;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+	transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.inno-primary-button:hover:not(:disabled),
+.inno-primary-icon-button:hover:not(:disabled) {
+	background: var(--inno-tech);
+	color: #ffffff;
+	box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
+.inno-primary-button:active:not(:disabled),
+.inno-primary-icon-button:active:not(:disabled) {
+	transform: translateY(1px);
+}
+
+.inno-primary-button:disabled,
+.inno-primary-icon-button:disabled {
+	cursor: not-allowed;
+}
+
 .inno-chat-grid {
 	background:
 		linear-gradient(90deg, var(--inno-grid-color, rgba(226, 232, 240, 0.38)) 1px, transparent 1px),
@@ -411,6 +439,10 @@ inno-workspace-panel textarea {
 
 .inno-workspace-scope button {
 	white-space: nowrap;
+}
+
+.inno-workspace-scope button.inno-settings-card-toggle {
+	white-space: normal;
 }
 
 .inno-workspace-scope .inno-workspace-tab {

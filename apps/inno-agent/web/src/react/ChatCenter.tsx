@@ -538,7 +538,7 @@ export function ChatCenter() {
 					<span key={`${img.name}-${index}`} className="relative inline-flex items-center gap-1 rounded-md border border-[var(--inno-border)] bg-[var(--inno-surface-muted)] p-1 shadow-sm">
 						<img src={img.previewUrl} alt={img.name} className="h-12 w-12 rounded object-cover" />
 						<button
-							className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-slate-600 text-white hover:bg-slate-800"
+							className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-[var(--inno-border)] bg-[var(--inno-surface)] text-[var(--inno-text-muted)] shadow-sm hover:bg-[var(--inno-accent-soft)] hover:text-[var(--inno-accent)]"
 							title="Remove image"
 							onClick={() => removeInlineImage(index)}
 						>
@@ -592,7 +592,7 @@ export function ChatCenter() {
 						</button>
 					) : null}
 					<button
-						className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors ${isUploading ? "cursor-not-allowed bg-[var(--inno-surface-muted)] text-[var(--inno-text-muted)]" : "bg-slate-900 text-white hover:bg-slate-800"}`}
+						className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors ${isUploading ? "cursor-not-allowed bg-[var(--inno-surface-muted)] text-[var(--inno-text-muted)]" : "inno-primary-button"}`}
 						title="Send"
 						disabled={isUploading}
 						onClick={handleSend}

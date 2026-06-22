@@ -213,7 +213,7 @@
 	"jobs": {
 		"title": "Scheduled Jobs",
 		"subtitle": "Recurring automations and reminders",
-		"newJob": "+ New",
+		"newJob": "New",
 		"empty": "No scheduled jobs.",
 		"lastRun": "Last run: {{time}}",
 		"nextRun": "Next: {{time}}",

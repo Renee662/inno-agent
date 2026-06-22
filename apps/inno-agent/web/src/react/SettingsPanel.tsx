@@ -166,7 +166,7 @@ function ModelEditForm({ model, settings, onClose }: {
 			</div>
 			{formError ? <div className="mt-2 rounded bg-red-50 px-2 py-1 text-xs text-red-700">{formError}</div> : null}
 			<div className="mt-2 flex gap-2">
-				<button className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800 disabled:opacity-50" disabled={saving} onClick={() => void handleSave()}>
+				<button className="rounded-md inno-primary-button px-3 py-1.5 text-xs text-white disabled:opacity-50" disabled={saving} onClick={() => void handleSave()}>
 					{saving ? t("settings.savingProvider") : t("settings.saveProvider")}
 				</button>
 				<button className="rounded-md border border-[var(--inno-border)] px-3 py-1.5 text-xs text-[var(--inno-text-muted)] hover:bg-[var(--inno-surface-muted)]" onClick={onClose}>
@@ -311,7 +311,7 @@ function NewProviderForm() {
 					</div>
 					{formError ? <div className="mt-2 rounded bg-red-50 px-2 py-1 text-xs text-red-700">{formError}</div> : null}
 					{saveMessage ? <div className="mt-2 rounded bg-green-50 px-2 py-1 text-xs text-green-700">{saveMessage}</div> : null}
-					<button className="mt-3 rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800 disabled:opacity-50" disabled={saving} onClick={() => void handleSave()}>
+					<button className="mt-3 rounded-md inno-primary-button px-3 py-1.5 text-xs text-white disabled:opacity-50" disabled={saving} onClick={() => void handleSave()}>
 						{saving ? t("settings.savingProvider") : t("settings.saveProvider")}
 					</button>
 				</div>
@@ -607,7 +607,7 @@ function ChannelsSettings({ settings }: { settings: InnoSettings }) {
 									)}
 									{(!qrStatus || qrStatus === "confirmed" || qrStatus === "expired") && (
 										<button
-											className="flex items-center gap-1.5 rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800"
+											className="flex items-center gap-1.5 rounded-md inno-primary-button px-3 py-1.5 text-xs text-white"
 											onClick={() => void startQrLogin()}
 										>
 											<QrCodeIcon size={13} />
@@ -651,7 +651,7 @@ function ChannelsSettings({ settings }: { settings: InnoSettings }) {
 					{formError && <div className="rounded bg-red-50 px-2 py-1 text-xs text-red-700">{formError}</div>}
 					{saveMsg && <div className="rounded bg-green-50 px-2 py-1 text-xs text-green-700">{saveMsg}</div>}
 					<button
-						className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800 disabled:opacity-50 justify-self-start"
+						className="rounded-md inno-primary-button px-3 py-1.5 text-xs text-white disabled:opacity-50 justify-self-start"
 						disabled={saving}
 						onClick={() => void handleSave()}
 					>
@@ -715,21 +715,21 @@ function ContentHubSettings({ settings }: { settings: InnoSettings }) {
 		}
 	}
 
-	const inputCls = "h-8 min-w-0 flex-1 rounded-md border border-[var(--inno-border)] px-2.5 text-xs text-[var(--inno-text)] placeholder:text-[var(--inno-text-subtle)] focus:border-blue-400 focus:outline-none";
+	const inputCls = "h-8 min-w-0 w-full rounded-md border border-[var(--inno-border)] px-2.5 text-xs text-[var(--inno-text)] placeholder:text-[var(--inno-text-subtle)] focus:border-blue-400 focus:outline-none";
 	const sourceLabel = type === "github"
 		? `GitHub · ${owner || "?"}/${repo || "?"}`
 		: `${t("settings.contentHub.bundle", "自托管服务")} · ${baseUrl || "?"}`;
 
 	return (
-		<div className="rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)] p-4">
-			<button className="flex w-full items-start gap-2 text-left" onClick={() => setOpen((v) => !v)}>
+		<div className="min-w-0 rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)] p-4">
+			<button className="inno-settings-card-toggle flex w-full min-w-0 items-start gap-2 text-left" onClick={() => setOpen((v) => !v)}>
 				<Database size={16} className="mt-0.5 shrink-0 text-[var(--inno-text)]" />
 				<div className="min-w-0 flex-1">
-					<h4 className="text-sm font-medium text-[var(--inno-text)]">{t("settings.contentHub.title", "内容源(技能库 + 预设)")}</h4>
-					<p className="mt-1 text-xs leading-relaxed text-[var(--inno-text-muted)]">
+					<h4 className="break-words text-sm font-medium text-[var(--inno-text)]">{t("settings.contentHub.title", "内容源(技能库 + 预设)")}</h4>
+					<p className="mt-1 max-w-full break-words text-xs leading-relaxed text-[var(--inno-text-muted)]">
 						{t("settings.contentHub.desc", "技能库和预设工作区从这里拉取。默认公共仓库,可改为私有 GitHub 仓库或自托管服务。")}
 					</p>
-					{!open && <p className="mt-1 truncate text-[11px] text-[var(--inno-text-subtle)]">{sourceLabel}</p>}
+					{!open && <p className="mt-1 break-all text-[11px] leading-relaxed text-[var(--inno-text-subtle)]">{sourceLabel}</p>}
 				</div>
 				<ChevronDown size={14} className={`mt-1 shrink-0 text-[var(--inno-text-subtle)] transition-transform ${open ? "rotate-180" : ""}`} />
 			</button>
@@ -737,7 +737,7 @@ function ContentHubSettings({ settings }: { settings: InnoSettings }) {
 			{open ? (
 				<div className="mt-3 grid gap-2.5">
 					{/* Type selector */}
-					<div className="flex items-center gap-1.5">
+					<div className="flex flex-wrap items-center gap-1.5">
 						<button
 							onClick={() => setType("github")}
 							className={`flex h-7 items-center rounded-md border px-2.5 text-xs ${type === "github" ? "border-blue-400 bg-[var(--inno-accent-soft)] text-[var(--inno-accent)]" : "border-[var(--inno-border)] text-[var(--inno-text-muted)] hover:bg-[var(--inno-surface-muted)]"}`}
@@ -754,12 +754,12 @@ function ContentHubSettings({ settings }: { settings: InnoSettings }) {
 
 					{type === "github" ? (
 						<>
-							<div className="flex items-center gap-2">
+							<div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2">
 								<input className={inputCls} value={owner} onChange={(e) => { setOwner(e.target.value); setSaved(false); }} placeholder="owner" autoComplete="off" />
 								<input className={inputCls} value={repo} onChange={(e) => { setRepo(e.target.value); setSaved(false); }} placeholder="repo" autoComplete="off" />
 								<input className={inputCls} value={ref} onChange={(e) => { setRef(e.target.value); setSaved(false); }} placeholder="ref (main)" autoComplete="off" />
 							</div>
-							<div className="flex items-center gap-2">
+							<div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2">
 								<input className={inputCls} value={skillsPath} onChange={(e) => { setSkillsPath(e.target.value); setSaved(false); }} placeholder="skill-library" autoComplete="off" />
 								<input className={inputCls} value={presetsPath} onChange={(e) => { setPresetsPath(e.target.value); setSaved(false); }} placeholder="workspace-templates" autoComplete="off" />
 							</div>
@@ -768,9 +768,9 @@ function ContentHubSettings({ settings }: { settings: InnoSettings }) {
 						<input className={inputCls} value={baseUrl} onChange={(e) => { setBaseUrl(e.target.value); setSaved(false); }} placeholder="https://hub.example.com" autoComplete="off" />
 					)}
 
-					<div className="flex items-center gap-2">
+					<div className="flex min-w-0 flex-wrap items-center gap-2">
 						<input
-							className={inputCls}
+							className={`${inputCls} flex-1 basis-44`}
 							type="password"
 							value={token}
 							onChange={(e) => { setToken(e.target.value); setSaved(false); }}
@@ -780,7 +780,7 @@ function ContentHubSettings({ settings }: { settings: InnoSettings }) {
 						<button
 							disabled={saving}
 							onClick={() => void handleSave()}
-							className="flex h-8 shrink-0 items-center rounded-md bg-slate-900 px-3 text-xs text-white hover:bg-slate-800 disabled:opacity-50"
+							className="flex h-8 shrink-0 items-center rounded-md inno-primary-button px-3 text-xs text-white disabled:opacity-50"
 						>
 							{saving ? t("common.loading") : saved ? t("settings.github.saved", "已保存") : t("common.save")}
 						</button>

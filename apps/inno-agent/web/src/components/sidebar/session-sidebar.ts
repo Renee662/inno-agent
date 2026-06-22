@@ -143,7 +143,7 @@ export class SessionSidebar extends LitElement {
 			return html`
 				<div class="flex h-full flex-col items-center border-r border-black/10 bg-[var(--inno-sidebar-bg)] py-2">
 					<button
-						class="mb-2 flex h-9 w-9 items-center justify-center rounded-md bg-slate-900 text-white text-lg hover:bg-slate-800"
+						class="mb-2 flex h-9 w-9 items-center justify-center rounded-md inno-primary-button text-white text-lg"
 						title="New chat"
 						@click=${() => this._newChat()}
 					>
@@ -192,7 +192,7 @@ export class SessionSidebar extends LitElement {
 					<h2 class="text-xs font-medium uppercase tracking-wide text-[var(--inno-text-muted)]">Chat Sessions</h2>
 					<div class="flex items-center gap-2">
 						<button
-							class="rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white hover:bg-slate-800"
+							class="rounded-md inno-primary-button px-2 py-1 text-xs font-medium text-white"
 							title="New chat"
 							@click=${() => this._newChat()}
 						>
@@ -220,7 +220,7 @@ export class SessionSidebar extends LitElement {
 			<div class="p-2 border-t border-black/10">
 				<button
 					class="flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm w-full
-						bg-slate-900 text-white hover:bg-slate-800 transition-colors"
+						inno-primary-button text-white transition-colors"
 					@click=${() => this._newChat()}
 				>
 					+ New Chat

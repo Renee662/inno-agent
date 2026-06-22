@@ -140,7 +140,7 @@ export function RunsPanel({ sessionId, onClose }: RunsPanelProps) {
 								<button
 									onClick={() => void handleArchive()}
 									disabled={archiveBusy}
-									className="flex h-6 items-center gap-1 rounded-md bg-slate-800 px-2 text-[11px] font-medium text-white transition-colors hover:bg-slate-700 disabled:opacity-50"
+									className="flex h-6 items-center gap-1 rounded-md inno-primary-button px-2 text-[11px] font-medium text-white transition-colors disabled:opacity-50"
 								>
 									<Archive size={11} />
 									{archiveBusy ? "归档中…" : "归档为笔记"}

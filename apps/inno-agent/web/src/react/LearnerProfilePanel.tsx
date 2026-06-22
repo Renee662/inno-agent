@@ -132,7 +132,7 @@ function SummarySection() {
 						{t("common.cancel")}
 					</button>
 					<button
-						className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:opacity-50"
+						className="rounded-md inno-primary-button px-3 py-1.5 text-sm text-white disabled:opacity-50"
 						disabled={state.isSaving}
 						onClick={async () => {
 							await learnerStore.patchSummary(buffer);
@@ -207,7 +207,7 @@ function GoalsSection() {
 				count={goals.length}
 				action={
 					<button
-						className="rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800"
+						className="rounded-md inno-primary-button px-3 py-1.5 text-xs text-white"
 						onClick={openForm}
 					>
 						{t("profile.goals.addNew")}
@@ -344,7 +344,7 @@ function GoalFormDialog({ onClose, onSubmit }: { onClose: () => void; onSubmit: 
 						{t("common.cancel")}
 					</button>
 					<button
-						className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:opacity-50"
+						className="rounded-md inno-primary-button px-3 py-1.5 text-sm text-white disabled:opacity-50"
 						disabled={saving}
 						onClick={() => void save()}
 					>
@@ -489,7 +489,7 @@ function GoalCard({ goal }: { goal: LearningGoal }) {
 					<button className="rounded-md bg-[var(--inno-surface-muted)] px-3 py-1 text-xs text-[var(--inno-text-muted)]" onClick={() => setEditing(false)}>
 						{t("common.cancel")}
 					</button>
-					<button className="rounded-md bg-slate-900 px-3 py-1 text-xs text-white disabled:opacity-50" disabled={saving} onClick={() => void save()}>
+					<button className="rounded-md inno-primary-button px-3 py-1 text-xs text-white disabled:opacity-50" disabled={saving} onClick={() => void save()}>
 						{saving ? t("common.saving") : t("common.save")}
 					</button>
 				</div>
@@ -632,7 +632,7 @@ function KnowledgeRow({ state }: { state: KnowledgeState }) {
 							<button className="rounded-md bg-[var(--inno-surface-muted)] px-3 py-1 text-xs text-[var(--inno-text-muted)]" onClick={() => setExpanded(false)}>
 								{t("common.cancel")}
 							</button>
-							<button className="rounded-md bg-slate-900 px-3 py-1 text-xs text-white disabled:opacity-50" disabled={saving} onClick={() => void save()}>
+							<button className="rounded-md inno-primary-button px-3 py-1 text-xs text-white disabled:opacity-50" disabled={saving} onClick={() => void save()}>
 								{saving ? t("common.saving") : t("common.save")}
 							</button>
 						</div>
@@ -747,7 +747,7 @@ function MisconceptionRow({ item }: { item: Misconception }) {
 					<button className="rounded-md bg-[var(--inno-surface-muted)] px-3 py-1 text-xs text-[var(--inno-text-muted)]" onClick={() => setDirty(false)}>
 						{t("common.cancel")}
 					</button>
-					<button className="rounded-md bg-slate-900 px-3 py-1 text-xs text-white disabled:opacity-50" disabled={saving} onClick={() => void save()}>
+					<button className="rounded-md inno-primary-button px-3 py-1 text-xs text-white disabled:opacity-50" disabled={saving} onClick={() => void save()}>
 						{saving ? t("common.saving") : t("common.save")}
 					</button>
 				</div>
@@ -796,7 +796,7 @@ function PreferencesSection() {
 					<button className="rounded-md bg-[var(--inno-surface-muted)] px-3 py-1.5 text-sm text-[var(--inno-text-muted)]" onClick={() => setDirty(false)}>
 						{t("common.cancel")}
 					</button>
-					<button className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white disabled:opacity-50" disabled={state.isSaving} onClick={() => void save()}>
+					<button className="rounded-md inno-primary-button px-3 py-1.5 text-sm text-white disabled:opacity-50" disabled={state.isSaving} onClick={() => void save()}>
 						{state.isSaving ? t("common.saving") : t("common.save")}
 					</button>
 				</div>

@@ -394,7 +394,7 @@ function FileContentPane({ onToggleSidebar, sidebarOpen }: { onToggleSidebar: ()
 					<div className="flex items-center gap-1.5">
 						<button
 							disabled={state.isSaving}
-							className="flex h-7 items-center gap-1 rounded-md bg-slate-900 px-2.5 text-xs text-white hover:bg-slate-800 disabled:opacity-50"
+							className="flex h-7 items-center gap-1 rounded-md inno-primary-button px-2.5 text-xs text-white disabled:opacity-50"
 							onClick={() => void workspaceStore.saveFile()}
 						>
 							<Save size={12} />
@@ -474,7 +474,9 @@ function Node({ node, style, dragHandle }: NodeRendererProps<ArboristNode>) {
 			ref={dragHandle}
 			style={style}
 			className={`group flex items-center gap-1.5 rounded-md px-2 py-1 text-xs cursor-pointer select-none ${
-				selected ? "bg-[var(--inno-accent-soft)] text-[var(--inno-accent)] ring-1 ring-blue-100" : "text-[var(--inno-text-muted)] hover:bg-slate-100/85 hover:text-[var(--inno-text)]"
+				selected
+					? "bg-[var(--inno-accent-soft)] text-[var(--inno-accent)] ring-1 ring-blue-100"
+					: "text-[var(--inno-text-muted)] hover:bg-slate-100/85 hover:text-[var(--inno-text)]"
 			}`}
 			onClick={(e) => {
 				e.stopPropagation();

@@ -9,7 +9,7 @@
 			(function () {
 				try {
 					var t = localStorage.getItem("inno.theme") || "light";
-					var valid = ["light", "warm", "ocean"];
+					var valid = ["light", "warm", "ocean", "innospark"];
 					if (valid.indexOf(t) === -1) t = "light";
 					document.documentElement.setAttribute("data-theme", t);
 				} catch (e) {}
