@@ -123,6 +123,7 @@
 		"selectFile": "Select a file from the workspace",
 		"noPreview": "No preview",
 		"binaryFile": "Binary file",
+		"openAsText": "Open as Text",
 		"emptyTable": "Empty table",
 		"tableRows": "{{count}} rows",
 		"officeParsing": "Extracting document text...",

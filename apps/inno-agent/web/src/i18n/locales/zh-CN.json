@@ -123,6 +123,7 @@
 		"selectFile": "从左侧选择一个文件",
 		"noPreview": "暂无预览",
 		"binaryFile": "二进制文件",
+		"openAsText": "以文本打开",
 		"emptyTable": "空表格",
 		"tableRows": "{{count}} 行",
 		"officeParsing": "正在提取文档文本…",

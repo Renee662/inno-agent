@@ -13,9 +13,10 @@ export async function getWorkspaceTree(workspaceId?: string): Promise<WorkspaceT
 	return apiFetch<WorkspaceTree>(`/api/workspace/tree${qs(workspaceId)}`);
 }
 
-export async function getWorkspaceFile(path: string, workspaceId?: string): Promise<WorkspaceFileDetail> {
+export async function getWorkspaceFile(path: string, workspaceId?: string, forceText = false): Promise<WorkspaceFileDetail> {
 	const params = new URLSearchParams({ path });
 	if (workspaceId) params.set("workspaceId", workspaceId);
+	if (forceText) params.set("forceText", "1");
 	return apiFetch<WorkspaceFileDetail>(`/api/workspace/file?${params.toString()}`);
 }
 

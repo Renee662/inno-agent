@@ -93,6 +93,23 @@ class WorkspaceStoreImpl extends EventEmitter<WorkspaceStoreEvents> {
 
 	/* --- Edit lifecycle --- */
 
+	/** Re-fetch the current file forcing text mode (for binary files the user wants to edit). */
+	async openAsText(): Promise<void> {
+		if (!this.currentFile) return;
+		this.isLoadingFile = true;
+		this.error = "";
+		this.emit("change", undefined);
+		try {
+			const file = await getWorkspaceFile(this.currentFile.path, this.wsId, true);
+			this.currentFile = file;
+		} catch (err) {
+			this.error = err instanceof Error ? err.message : "Failed to load file as text";
+		} finally {
+			this.isLoadingFile = false;
+			this.emit("change", undefined);
+		}
+	}
+
 	startEditing(): void {
 		if (!this.currentFile || this.currentFile.content == null) return;
 		this.isEditing = true;

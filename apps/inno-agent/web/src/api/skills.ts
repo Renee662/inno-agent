@@ -68,8 +68,10 @@ export async function getSkillTree(name: string): Promise<{ name: string; childr
 	return apiFetch<{ name: string; children: WorkspaceTreeNode[] }>(`/api/skills/${encodeURIComponent(name)}/tree`);
 }
 
-export async function getSkillFile(name: string, path: string): Promise<WorkspaceFileDetail> {
-	return apiFetch<WorkspaceFileDetail>(`/api/skills/${encodeURIComponent(name)}/file?path=${encodeURIComponent(path)}`);
+export async function getSkillFile(name: string, path: string, forceText = false): Promise<WorkspaceFileDetail> {
+	const params = new URLSearchParams({ path });
+	if (forceText) params.set("forceText", "1");
+	return apiFetch<WorkspaceFileDetail>(`/api/skills/${encodeURIComponent(name)}/file?${params.toString()}`);
 }
 
 export async function saveSkillFile(name: string, path: string, content: string): Promise<{ path: string; saved: boolean }> {

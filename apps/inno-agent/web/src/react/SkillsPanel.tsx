@@ -17,7 +17,7 @@ import { cpp } from "@codemirror/lang-cpp";
 import { rust } from "@codemirror/lang-rust";
 import { go } from "@codemirror/lang-go";
 import type { Extension } from "@codemirror/state";
-import { RefreshCw, Upload, Trash2, ChevronLeft, File, FileText, FileType, Folder, FolderOpen, Globe, Pencil, Save, X, PanelLeftClose, PanelLeftOpen, Library, Download, Check } from "lucide-react";
+import { RefreshCw, Upload, Trash2, ChevronLeft, File, FileText, FileType, Folder, FolderOpen, Globe, Pencil, Save, X, PanelLeftClose, PanelLeftOpen, Library, Download, Check, FileCode2 } from "lucide-react";
 import { skillsStore } from "../stores/skills-store.js";
 import { skillRawUrl } from '../api/skills.js';
 import type { SkillInfo } from "../types/skills.js";
@@ -110,9 +110,16 @@ function FilePreview({ file, skillName, isLoading }: { file: WorkspaceFileDetail
 	}
 	if (file.kind === "binary") {
 		return (
-			<div className="flex h-full flex-col items-center justify-center text-sm text-[var(--inno-text-muted)]">
-				<div className="mb-2 text-lg font-medium text-[var(--inno-text)]">{file.name}</div>
+			<div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-[var(--inno-text-muted)]">
+				<div className="text-lg font-medium text-[var(--inno-text)]">{file.name}</div>
 				<div>{t("preview.binaryFile", "Binary file")} · {formatSize(file.size)}</div>
+				<button
+					className="mt-2 flex items-center gap-1.5 rounded-md border border-[var(--inno-border)] px-3 py-1.5 text-xs text-[var(--inno-text-muted)] hover:bg-[var(--inno-surface-muted)]"
+					onClick={() => skillsStore.openAsText()}
+				>
+					<FileCode2 size={13} />
+					{t("preview.openAsText", "Open as Text")}
+				</button>
 			</div>
 		);
 	}

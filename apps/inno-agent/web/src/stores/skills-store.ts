@@ -185,6 +185,22 @@ class SkillsStoreImpl extends EventEmitter<SkillsStoreEvents> {
 		this.emit("change", undefined);
 	}
 
+	/** Re-fetch the current file forcing text mode (for binary files the user wants to edit). */
+	async openAsText() {
+		if (!this.selectedSkill || !this.currentFile) return;
+		this.isLoadingFile = true;
+		this.emit("change", undefined);
+		try {
+			const file = await getSkillFile(this.selectedSkill, this.currentFile.path, true);
+			this.currentFile = file;
+		} catch {
+			// keep current file on failure
+		} finally {
+			this.isLoadingFile = false;
+			this.emit("change", undefined);
+		}
+	}
+
 	updateEditBuffer(value: string) {
 		this.editBuffer = value;
 		this.emit("change", undefined);

@@ -17,7 +17,7 @@ import { cpp } from "@codemirror/lang-cpp";
 import { rust } from "@codemirror/lang-rust";
 import { go } from "@codemirror/lang-go";
 import type { Extension } from "@codemirror/state";
-import { RefreshCw, FileText, FileType, Globe, File, FolderOpen, Folder, Pencil, Save, X, PanelLeftClose, PanelLeftOpen, Sparkles, Download } from "lucide-react";
+import { RefreshCw, FileText, FileType, Globe, File, FolderOpen, Folder, Pencil, Save, X, PanelLeftClose, PanelLeftOpen, Sparkles, Download, FileCode2 } from "lucide-react";
 import { workspaceStore } from "../stores/workspace-store.js";
 import { workspaceFileUrl, workspaceFolderZipUrl, triggerDownload } from "../api/workspace.js";
 import { workspacesStore } from "../stores/workspaces-store.js";
@@ -304,9 +304,16 @@ function Preview({ file, isLoading }: { file: WorkspaceFileDetail; isLoading: bo
 	}
 	if (file.kind === "binary") {
 		return (
-			<div className="flex h-full flex-col items-center justify-center text-sm text-[var(--inno-text-muted)]">
-				<div className="mb-2 text-lg font-medium text-[var(--inno-text)]">{file.name}</div>
+			<div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-[var(--inno-text-muted)]">
+				<div className="text-lg font-medium text-[var(--inno-text)]">{file.name}</div>
 				<div>{t("preview.binaryFile")} · {formatSize(file.size)}</div>
+				<button
+					className="mt-2 flex items-center gap-1.5 rounded-md border border-[var(--inno-border)] px-3 py-1.5 text-xs text-[var(--inno-text-muted)] hover:bg-[var(--inno-surface-muted)]"
+					onClick={() => workspaceStore.openAsText()}
+				>
+					<FileCode2 size={13} />
+					{t("preview.openAsText", "Open as Text")}
+				</button>
 			</div>
 		);
 	}

@@ -1259,13 +1259,20 @@ function contentTypeForWorkspaceFile(filePath: string): string {
 	if (ext === ".docx") return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 	if (ext === ".xlsx") return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 	if (ext === ".pptx") return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-	return TEXT_PREVIEW_EXTENSIONS.has(ext) ? "text/plain; charset=utf-8" : "application/octet-stream";
+	if (TEXT_PREVIEW_EXTENSIONS.has(ext)) return "text/plain; charset=utf-8";
+	if (isDotfileText(filePath)) return "text/plain; charset=utf-8";
+	return "application/octet-stream";
 }
 
 const TEXT_NOEXT_NAMES = new Set(["makefile", "dockerfile", "gemfile", "rakefile", "procfile", "vagrantfile"]);
 
 /** Office document extensions previewable via LiteParse text extraction. */
 const OFFICE_PREVIEW_EXTENSIONS = new Set([".docx", ".xlsx", ".pptx"]);
+
+/** Whether a file looks like a dotfile config (almost always text). */
+function isDotfileText(filePath: string): boolean {
+	return basename(filePath).startsWith(".");
+}
 
 function workspaceFileKind(filePath: string): "markdown" | "html" | "pdf" | "image" | "office" | "text" | "binary" {
 	const ext = extname(filePath).toLowerCase();
@@ -1276,6 +1283,8 @@ function workspaceFileKind(filePath: string): "markdown" | "html" | "pdf" | "ima
 	if (OFFICE_PREVIEW_EXTENSIONS.has(ext)) return "office";
 	if (TEXT_PREVIEW_EXTENSIONS.has(ext)) return "text";
 	if (!ext && TEXT_NOEXT_NAMES.has(basename(filePath).toLowerCase())) return "text";
+	// Dotfiles (.env, .env.local, .npmrc, .gitconfig, etc.) are text config files
+	if (isDotfileText(filePath)) return "text";
 	return "binary";
 }
 
@@ -2124,7 +2133,8 @@ const server = createServer(async (req, res) => {
 			}
 			const st = statSync(fullPath);
 			const kind = workspaceFileKind(fullPath);
-			if (kind === "binary" || kind === "pdf" || kind === "image") {
+			const forceText = params.get("forceText") === "1";
+			if (!forceText && (kind === "binary" || kind === "pdf" || kind === "image")) {
 				json(res, 200, {
 					path: relative(skillDir, fullPath),
 					name: basename(fullPath),
@@ -2140,8 +2150,8 @@ const server = createServer(async (req, res) => {
 			json(res, 200, {
 				path: relative(skillDir, fullPath),
 				name: basename(fullPath),
-				kind,
-				mimeType: contentTypeForWorkspaceFile(fullPath),
+				kind: forceText ? "text" : kind,
+				mimeType: forceText ? "text/plain; charset=utf-8" : contentTypeForWorkspaceFile(fullPath),
 				size: st.size,
 				updatedAt: st.mtime.toISOString(),
 				content: readFileSync(fullPath, "utf-8"),
@@ -2722,7 +2732,8 @@ const server = createServer(async (req, res) => {
 			const stat = statSync(filePath);
 			const kind = workspaceFileKind(filePath);
 			const contentType = contentTypeForWorkspaceFile(filePath);
-			if (kind === "binary" || kind === "pdf" || kind === "image" || kind === "office") {
+			const forceText = params.get("forceText") === "1";
+			if (!forceText && (kind === "binary" || kind === "pdf" || kind === "image" || kind === "office")) {
 				const relPath = workspaceRelativePath(root, filePath);
 				const rawUrl = `/api/workspace/raw?workspaceId=${encodeURIComponent(wsId)}&path=${encodeURIComponent(relPath)}`;
 				json(res, 200, {
@@ -2747,8 +2758,8 @@ const server = createServer(async (req, res) => {
 			json(res, 200, {
 				path: workspaceRelativePath(root, filePath),
 				name: basename(filePath),
-				kind,
-				mimeType: contentType,
+				kind: forceText ? "text" : kind,
+				mimeType: forceText ? "text/plain; charset=utf-8" : contentType,
 				size: stat.size,
 				updatedAt: stat.mtime.toISOString(),
 				content: readFileSync(filePath, "utf-8"),
