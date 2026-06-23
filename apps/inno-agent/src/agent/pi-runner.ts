@@ -511,13 +511,12 @@ export async function reloadResources(): Promise<void> {
 
 /**
  * Switch active runtime to a persisted session file path.
+ * NOTE: We intentionally do NOT abort the current prompt here — switching
+ * sessions is a UI-level navigation action. The backend task continues
+ * running and the client can reconnect to its event stream later.
  */
 export async function switchSessionFile(sessionPath: string): Promise<void> {
 	if (!_runtime) throw new Error("Session not initialized. Call initSession() first.");
-	// Defensively abort any in-flight prompt FIRST (outside the queue, like
-	// switchModel does) so this switch can't get stuck behind a still-streaming
-	// turn holding the shared queue.
-	await abortCurrentPrompt();
 	await enqueue(async () => {
 		await switchToSession(sessionPath);
 	});
@@ -538,13 +537,12 @@ export async function applyWorkspaceCwd(sessionPath: string): Promise<void> {
 
 /**
  * Create and switch to a new session.
+ * NOTE: We intentionally do NOT abort the current prompt here — the backend
+ * task for the previous session continues running in the background.
+ * The client can reconnect to its event stream when switching back.
  */
 export async function createNewSession(): Promise<string> {
 	if (!_runtime) throw new Error("Session not initialized. Call initSession() first.");
-	// Defensively abort any in-flight prompt FIRST (outside the queue) so opening
-	// a new conversation can't get stuck behind a still-streaming turn holding the
-	// shared queue.
-	await abortCurrentPrompt();
 	return enqueue(async () => {
 		await _runtime!.newSession();
 		const sessionId = getCurrentSessionId();

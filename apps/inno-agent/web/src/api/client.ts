@@ -25,28 +25,10 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
 }
 
 /**
- * SSE stream parser. Yields parsed JSON objects from `data:` lines.
- * Pass an AbortSignal to allow callers to stop the stream early (e.g. user
- * clicks Stop). When aborted the generator returns normally instead of
- * surfacing the underlying AbortError.
+ * Shared SSE body-reading loop. Yields parsed JSON objects from `data:` lines.
+ * When the signal is aborted the generator returns normally.
  */
-export async function* streamSSE<T>(url: string, body: unknown, signal?: AbortSignal): AsyncGenerator<T> {
-	let res: Response;
-	try {
-		res = await fetch(url, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(body),
-			signal,
-		});
-	} catch (err) {
-		if (signal?.aborted) return;
-		throw err;
-	}
-	if (!res.ok) {
-		const errBody = await res.json().catch(() => ({}));
-		throw new ApiError(res.status, (errBody as Record<string, string>).error || res.statusText);
-	}
+async function* readSSEStream<T>(res: Response, signal?: AbortSignal): AsyncGenerator<T> {
 	const reader = res.body!.getReader();
 	const decoder = new TextDecoder();
 	let buffer = "";
@@ -83,4 +65,50 @@ export async function* streamSSE<T>(url: string, body: unknown, signal?: AbortSi
 			// already closed
 		}
 	}
+}
+
+/**
+ * SSE stream parser. Yields parsed JSON objects from `data:` lines.
+ * Pass an AbortSignal to allow callers to stop the stream early (e.g. user
+ * clicks Stop). When aborted the generator returns normally instead of
+ * surfacing the underlying AbortError.
+ */
+export async function* streamSSE<T>(url: string, body: unknown, signal?: AbortSignal): AsyncGenerator<T> {
+	let res: Response;
+	try {
+		res = await fetch(url, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(body),
+			signal,
+		});
+	} catch (err) {
+		if (signal?.aborted) return;
+		throw err;
+	}
+	if (!res.ok) {
+		const errBody = await res.json().catch(() => ({}));
+		throw new ApiError(res.status, (errBody as Record<string, string>).error || res.statusText);
+	}
+	yield* readSSEStream<T>(res, signal);
+}
+
+/**
+ * SSE stream via GET. Returns silently on 404 (no active stream).
+ * Yields parsed JSON objects from `data:` lines.
+ */
+export async function* streamSSEGet<T>(url: string, signal?: AbortSignal): AsyncGenerator<T> {
+	let res: Response;
+	try {
+		res = await fetch(url, { method: "GET", signal });
+	} catch (err) {
+		if (signal?.aborted) return;
+		throw err;
+	}
+	if (res.status === 404) return;
+	if (!res.ok) {
+		const errBody = await res.json().catch(() => ({}));
+		throw new ApiError(res.status, (errBody as Record<string, string>).error || res.statusText);
+	}
+	yield* readSSEStream<T>(res, signal);
 }

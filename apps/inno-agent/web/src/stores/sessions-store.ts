@@ -68,6 +68,7 @@ class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 	preselectedWorkspaceId: string | null = null;
 	private _openRequestId = 0;
 	private _messageCache = new Map<string, Awaited<ReturnType<typeof getSession>>["messages"]>();
+	private _backgroundRunningSessions = new Set<string>();
 
 	/**
 	 * Single source of truth for whether the chat center shows the welcome
@@ -170,14 +171,26 @@ class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 
 	async openSession(id: string): Promise<void> {
 		const requestId = ++this._openRequestId;
+		const prevSessionId = this.currentSessionId;
+
+		// Track background sessions: if the previous session was still streaming,
+		// preserve its state so we can resume when switching back.
+		if (prevSessionId && prevSessionId !== id) {
+			if (chatStore.isSending) {
+				this._backgroundRunningSessions.add(prevSessionId);
+				this._messageCache.set(prevSessionId, chatStore.messages);
+			} else {
+				this._messageCache.delete(prevSessionId);
+			}
+		}
+
 		this.currentSessionId = id;
 		this.openingSessionId = id;
 		this.pendingNewSession = false;
 		this.emit("change", undefined);
 
-		// Abort any in-flight chat stream tied to the previous session so its
-		// events can't leak into this one (and keep isSending=true forever).
-		chatStore.cancel();
+		// Detach from the current stream without stopping the backend task.
+		chatStore.detach();
 		// Drop any terminal bound to the previous session.
 		void terminalStore.disconnect();
 
@@ -203,12 +216,25 @@ class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 		try {
 			const session = await getSession(id);
 			if (requestId !== this._openRequestId) return;
-			this._messageCache.set(id, session.messages);
-			chatStore.loadHistory(session.messages);
+
+			const isBackground = this._backgroundRunningSessions.has(id);
+			const cachedMessages = this._messageCache.get(id);
+
+			if (isBackground && cachedMessages && cachedMessages.length > session.messages.length) {
+				chatStore.loadHistory(cachedMessages);
+			} else {
+				this._messageCache.set(id, session.messages);
+				chatStore.loadHistory(session.messages);
+			}
 
 			void activateSession(id).catch((err) => {
 				console.warn(`[sessions] failed to activate ${id}: ${err instanceof Error ? err.message : String(err)}`);
 			});
+
+			if (isBackground) {
+				this._backgroundRunningSessions.delete(id);
+				void chatStore.resumeStream(id);
+			}
 		} finally {
 			if (requestId === this._openRequestId) {
 				this.openingSessionId = null;
@@ -222,14 +248,20 @@ class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 	 * Enter "new session" mode without yet creating a backend session.
 	 * The actual session is created when the user chooses a workspace.
 	 *
-	 * Also aborts any in-flight chat stream so a stuck/streaming turn can't
-	 * keep `chatStore.isSending` true and block the chooser / input.
+	 * Also detaches from any in-flight chat stream so a stuck/streaming turn
+	 * can't keep `chatStore.isSending` true and block the chooser / input.
 	 */
 	beginNewSession(): void {
+		if (this.currentSessionId && chatStore.isSending) {
+			this._backgroundRunningSessions.add(this.currentSessionId);
+			this._messageCache.set(this.currentSessionId, chatStore.messages);
+		} else if (this.currentSessionId) {
+			this._messageCache.delete(this.currentSessionId);
+		}
 		this.currentSessionId = null;
 		this.pendingNewSession = true;
 		this.preselectedWorkspaceId = null;
-		chatStore.cancel();
+		chatStore.detach();
 		chatStore.clear();
 		void terminalStore.disconnect();
 		this.emit("change", undefined);
@@ -260,7 +292,11 @@ class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 		this.pendingNewSession = false;
 		this.preselectedWorkspaceId = null;
 		// Make sure no previous stream / terminal lingers.
-		chatStore.cancel();
+		if (this.currentSessionId && chatStore.isSending) {
+			this._backgroundRunningSessions.add(this.currentSessionId);
+			this._messageCache.set(this.currentSessionId, chatStore.messages);
+		}
+		chatStore.detach();
 		void terminalStore.disconnect();
 		this.emit("change", undefined);
 		try {
@@ -313,6 +349,7 @@ class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 	async deleteSession(id: string): Promise<void> {
 		const result = await deleteSession(id);
 		this._messageCache.delete(id);
+		this._backgroundRunningSessions.delete(id);
 		this.sessions = this.sessions.filter((session) => session.id !== id);
 		if (this.currentSessionId === id) {
 			this.currentSessionId = result.newActiveId;

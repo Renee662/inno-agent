@@ -104,6 +104,59 @@ let bootstrapped = false;
 let bootstrapPromise: Promise<void> | null = null;
 let bridgeToken: string | undefined;
 
+// ---------------------------------------------------------------------------
+// Session Event Broadcaster — allows clients to reconnect to in-progress
+// streams after navigating away and back.
+// ---------------------------------------------------------------------------
+
+class SessionEventBroadcaster {
+	private history: unknown[] = [];
+	private subscribers = new Set<(event: unknown) => void>();
+	private _closed = false;
+
+	publish(event: unknown): void {
+		if (this._closed) return;
+		this.history.push(event);
+		for (const sub of this.subscribers) sub(event);
+	}
+
+	subscribe(cb: (event: unknown) => void): () => void {
+		for (const event of this.history) cb(event);
+		if (!this._closed) this.subscribers.add(cb);
+		return () => { this.subscribers.delete(cb); };
+	}
+
+	close(): void { this._closed = true; this.subscribers.clear(); }
+	get closed(): boolean { return this._closed; }
+}
+
+const sessionBroadcasters = new Map<string, SessionEventBroadcaster>();
+
+function piEventToSseEvent(event: any): unknown | null {
+	switch (event.type) {
+		case "message_update": {
+			const ev = event.assistantMessageEvent;
+			if (ev.type === "text_delta") return { type: "text_delta", delta: ev.delta };
+			if (ev.type === "thinking_delta") return { type: "thinking_delta", delta: ev.delta };
+			if (ev.type === "error") return { type: "error", message: ev.error.errorMessage || `LLM API error (stopReason: ${ev.error.stopReason})` };
+			return null;
+		}
+		case "message_end": {
+			const msg = event.message;
+			if (msg && typeof msg === "object" && "stopReason" in msg && msg.stopReason === "error") {
+				return { type: "error", message: msg.errorMessage || "The model request failed." };
+			}
+			return null;
+		}
+		case "tool_execution_start":
+			return { type: "tool_start", toolCallId: event.toolCallId, toolName: event.toolName, args: event.args };
+		case "tool_execution_end":
+			return { type: "tool_end", toolCallId: event.toolCallId, toolName: event.toolName, result: event.result, isError: event.isError };
+		default:
+			return null;
+	}
+}
+
 /**
  * One-shot lazy bootstrap. Idempotent — concurrent requests while the first
  * bootstrap is still in-flight all await the same promise.
@@ -3494,6 +3547,41 @@ const server = createServer(async (req, res) => {
 			return;
 		}
 
+		// --- Chat Events Reconnect (SSE) ---
+		// Allows a client that navigated away to reconnect to an in-progress
+		// session's event stream and replay all events from the beginning.
+		const chatEventsMatch = matchRoute("GET", method, url, "/api/chat/events/:id");
+		if (chatEventsMatch) {
+			const sessionId = chatEventsMatch.id;
+			const bc = sessionBroadcasters.get(sessionId);
+			if (!bc) {
+				json(res, 404, { error: "No active stream" });
+				return;
+			}
+			res.writeHead(200, {
+				"Content-Type": "text/event-stream",
+				"Cache-Control": "no-cache",
+				"Connection": "keep-alive",
+				"X-Accel-Buffering": "no",
+			});
+			let ended = false;
+			const unsub = bc.subscribe((event: unknown) => {
+				if (ended) return;
+				res.write(`data: ${JSON.stringify(event)}\n\n`);
+				if ((event as any).type === "done" || ((event as any).type === "error" && !(event as any).toolCallId)) {
+					res.write("data: [DONE]\n\n");
+					ended = true;
+					res.end();
+				}
+			});
+			if (bc.closed && !ended) {
+				res.write("data: [DONE]\n\n");
+				res.end();
+			}
+			req.on("close", unsub);
+			return;
+		}
+
 		// --- Chat Streaming (SSE) ---
 		if (method === "POST" && url === "/api/chat/stream") {
 			const body = (await readBody(req)) as Record<string, unknown>;
@@ -3536,10 +3624,14 @@ const server = createServer(async (req, res) => {
 				aborted = true;
 				questionBridge.setEmitter(null);
 				questionBridge.cancel();
-				void abortCurrentPrompt();
 			});
 
 			questionBridge.setEmitter(sseWrite);
+
+			// Create a broadcaster for this session so clients can reconnect
+			// to the event stream after navigating away.
+			const broadcaster = new SessionEventBroadcaster();
+			sessionBroadcasters.set(capturedSessionId, broadcaster);
 
 			// Track whether the model API surfaced an error this turn. The PI SDK
 			// does NOT throw on model API errors (e.g. HTTP 413 from an over-long
@@ -3550,18 +3642,13 @@ const server = createServer(async (req, res) => {
 			let emittedError = false;
 			let promptStartTime = 0;
 			const onEvent = (event: import("@earendil-works/pi-coding-agent").AgentSessionEvent) => {
-				if (aborted) return;
+				// Logging regardless of aborted state
 				switch (event.type) {
 					case "message_update": {
 						const ev = event.assistantMessageEvent;
-						if (ev.type === "text_delta") {
-							sseWrite({ type: "text_delta", delta: ev.delta });
-						} else if (ev.type === "thinking_delta") {
-							sseWrite({ type: "thinking_delta", delta: ev.delta });
-						} else if (ev.type === "error") {
+						if (ev.type === "error") {
 							const errorMsg = ev.error.errorMessage || `LLM API error (stopReason: ${ev.error.stopReason})`;
 							logger.error({ errorMessage: errorMsg, stopReason: ev.error.stopReason, elapsedMs: Date.now() - promptStartTime }, "LLM API stream error event");
-							sseWrite({ type: "error", message: errorMsg });
 						}
 						break;
 					}
@@ -3575,7 +3662,6 @@ const server = createServer(async (req, res) => {
 							const detail = (msg as { errorMessage?: string }).errorMessage;
 							const errorMsg = detail || "The model request failed.";
 							logger.error({ stopReason: "error", errorMessage: errorMsg, message: msg, elapsedMs: Date.now() - promptStartTime }, "Model request failed (message_end stopReason=error)");
-							sseWrite({ type: "error", message: errorMsg });
 						}
 						break;
 					}
@@ -3584,12 +3670,6 @@ const server = createServer(async (req, res) => {
 							{ toolName: event.toolName, toolCallId: event.toolCallId },
 							"tool call started: %s", event.toolName,
 						);
-						sseWrite({
-							type: "tool_start",
-							toolCallId: event.toolCallId,
-							toolName: event.toolName,
-							args: event.args,
-						});
 						break;
 					case "tool_execution_end":
 						if (event.isError) {
@@ -3608,13 +3688,6 @@ const server = createServer(async (req, res) => {
 								"tool call completed: %s", event.toolName,
 							);
 						}
-						sseWrite({
-							type: "tool_end",
-							toolCallId: event.toolCallId,
-							toolName: event.toolName,
-							result: event.result,
-							isError: event.isError,
-						});
 						break;
 					case "auto_retry_start":
 						logger.warn({ attempt: event.attempt, maxAttempts: event.maxAttempts, delayMs: event.delayMs, errorMessage: event.errorMessage, elapsedMs: Date.now() - promptStartTime }, "LLM API call failed, auto-retrying...");
@@ -3628,6 +3701,13 @@ const server = createServer(async (req, res) => {
 						logger.info({ eventType: (event as { type?: string }).type }, "unhandled SSE event type: %s", (event as { type?: string }).type);
 						break;
 				}
+
+				// Convert to SSE event and publish to broadcaster + live client
+				const sseEvent = piEventToSseEvent(event);
+				if (sseEvent) {
+					broadcaster.publish(sseEvent);
+					if (!aborted) sseWrite(sseEvent);
+				}
 			};
 
 			promptStartTime = Date.now();
@@ -3637,15 +3717,19 @@ const server = createServer(async (req, res) => {
 				const fullText = targetSessionPath
 					? await runPromptStreamingInSession(targetSessionPath, prompt, onEvent, imageArgs)
 					: await runPromptStreaming(prompt, onEvent, imageArgs);
-				if (!aborted) sseWrite({ type: "done", fullText });
+				const doneEvent = { type: "done", fullText };
+				broadcaster.publish(doneEvent);
+				if (!aborted) sseWrite(doneEvent);
 				// Skip topic auto-generation when the turn errored — there is no
 				// meaningful assistant reply to summarize and the model API is
 				// likely still failing (which would just block again).
 				if (!emittedError) maybeAutoGenerateTopic(capturedSessionId);
 			} catch (err) {
 				logger.error({ err }, "SSE stream error");
+				const errorEvent = { type: "error", message: err instanceof Error ? err.message : "Unknown error" };
+				broadcaster.publish(errorEvent);
 				if (!aborted) {
-					sseWrite({ type: "error", message: err instanceof Error ? err.message : "Unknown error" });
+					sseWrite(errorEvent);
 				}
 			} finally {
 				// Always attribute this turn to the web channel — even on abort or
@@ -3660,6 +3744,14 @@ const server = createServer(async (req, res) => {
 				// session stays in the sidebar and can be reopened. No-op when an
 				// assistant message already exists (normal/errored turns).
 				persistPendingUserTurn(capturedSessionId);
+				// Keep the broadcaster alive for 60s so reconnecting clients can
+				// replay the full event history, then clean up.
+				setTimeout(() => {
+					if (sessionBroadcasters.get(capturedSessionId) === broadcaster) {
+						broadcaster.close();
+						sessionBroadcasters.delete(capturedSessionId);
+					}
+				}, 60_000);
 			}
 			if (!aborted) {
 				res.write("data: [DONE]\n\n");

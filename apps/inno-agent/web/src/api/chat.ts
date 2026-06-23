@@ -1,4 +1,4 @@
-import { apiFetch, streamSSE } from "./client.js";
+import { apiFetch, streamSSE, streamSSEGet } from "./client.js";
 import type { ChatStreamEvent } from "../types/chat.js";
 
 export interface InlineImage {
@@ -29,4 +29,12 @@ export async function abortChat(): Promise<void> {
 	} catch {
 		// best-effort — the SSE close handler is a fallback
 	}
+}
+
+/**
+ * Reconnect to an in-progress session's event stream. Returns silently
+ * if the session has no active stream (404).
+ */
+export function streamSessionEvents(sessionId: string, signal?: AbortSignal): AsyncGenerator<ChatStreamEvent> {
+	return streamSSEGet<ChatStreamEvent>(`/api/chat/events/${encodeURIComponent(sessionId)}`, signal);
 }

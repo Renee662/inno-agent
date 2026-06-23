@@ -1,5 +1,5 @@
 import { EventEmitter } from "./event-emitter.js";
-import { streamChat, abortChat } from "../api/chat.js";
+import { streamChat, abortChat, streamSessionEvents } from "../api/chat.js";
 import type { InlineImage } from "../api/chat.js";
 import type { ChatMessage, ChatStreamEvent, ChatToolRecord, PendingQuestion, QuestionnaireResult } from "../types/chat.js";
 import { notebookStore } from "./notebook-store.js";
@@ -27,10 +27,12 @@ class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 	/** Pending question from agent's ask_user_question tool */
 	pendingQuestion: PendingQuestion | null = null;
 	private abortController: AbortController | null = null;
+	private detachMode = false;
 	private wikiInvalidated = false;
 
 	async send(prompt: string, images?: InlineImage[]): Promise<void> {
 		if ((!prompt.trim() && !images?.length) || this.isSending) return;
+		this.detachMode = false;
 
 		// Capture the target session at send time to prevent misalignment
 		// if the user switches sessions while the request is queued.
@@ -67,7 +69,9 @@ class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 			// Finalize: add accumulated text as assistant message. Also finalize
 			// when the turn produced only an error (no text), so the error is
 			// preserved in history instead of vanishing when streaming state resets.
-			if (this.streamingText || this.streamingError || aborted) {
+			if (this.detachMode) {
+				// skip — backend still running, loadHistory will show final result
+			} else if (this.streamingText || this.streamingError || aborted) {
 				this.messages = [
 					...this.messages,
 					{
@@ -98,6 +102,7 @@ class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 			this.activeTools = [];
 			this.completedTools = [];
 			this.abortController = null;
+			this.detachMode = false;
 			this.pendingQuestion = null;
 			const shouldRefreshWiki = this.wikiInvalidated;
 			this.wikiInvalidated = false;
@@ -117,7 +122,10 @@ class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 		}
 	}
 
-	/** Abort the in-flight stream. */
+	/**
+	 * Abort the in-flight stream. Called when user clicks the stop button —
+	 * the only path that actually stops the backend task.
+	 */
 	cancel(): void {
 		const wasSending = this.isSending;
 		this.abortController?.abort();
@@ -126,6 +134,72 @@ class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 		// This releases the server's shared prompt queue immediately, preventing
 		// new-session / switch-session from blocking behind a still-running turn.
 		if (wasSending) void abortChat();
+	}
+
+	/**
+	 * Detach from the current stream without stopping the backend task.
+	 * Used when the user navigates to a different session.
+	 */
+	detach(): void {
+		this.detachMode = true;
+		this.abortController?.abort();
+		this.abortController = null;
+	}
+
+	/**
+	 * Reconnect to an in-progress session's backend event stream.
+	 * Replays history and continues receiving live events.
+	 */
+	async resumeStream(sessionId: string): Promise<void> {
+		if (this.isSending) return;
+		this.isSending = true;
+		this.streamingText = "";
+		this.streamingThinking = "";
+		this.streamingError = "";
+		this.activeTools = [];
+		this.completedTools = [];
+		this.detachMode = false;
+		const controller = new AbortController();
+		this.abortController = controller;
+		this.emit("change", undefined);
+
+		try {
+			for await (const event of streamSessionEvents(sessionId, controller.signal)) {
+				this._handleStreamEvent(event);
+			}
+			// Finalize assistant message from accumulated streaming text
+			if (this.detachMode) {
+				// detached again — skip finalize
+			} else if (this.streamingText || this.streamingError) {
+				this.messages = [
+					...this.messages,
+					{
+						role: "assistant",
+						content: this.streamingText,
+						timestamp: Date.now(),
+						thinking: this.streamingThinking || undefined,
+						tools: this.completedTools.length > 0 ? this.completedTools : undefined,
+						error: this.streamingError || undefined,
+					},
+				];
+			}
+		} catch (err) {
+			if (!controller.signal.aborted) {
+				console.warn("[chat-store] resumeStream error:", err);
+			}
+		} finally {
+			this.isSending = false;
+			this.streamingText = "";
+			this.streamingThinking = "";
+			this.streamingError = "";
+			this.activeTools = [];
+			this.completedTools = [];
+			this.abortController = null;
+			this.detachMode = false;
+			this.pendingQuestion = null;
+			this.emit("change", undefined);
+			void import("./sessions-store.js").then((m) => m.sessionsStore.refresh());
+		}
 	}
 
 	/** Re-send the last user prompt. No-op while a send is in flight. */
@@ -237,6 +311,7 @@ class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 	}
 
 	loadHistory(messages: ChatMessage[]) {
+		this.isLoadingHistory = false;
 		this.messages = messages;
 		this.isSending = false;
 		this.streamingText = "";
