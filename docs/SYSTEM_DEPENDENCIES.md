@@ -110,10 +110,19 @@ macOS 上使用系统内置工具，无需额外安装：
 
 ### 3.4 文档解析（parse_document 工具）
 
-文档解析通过 `@llamaindex/liteparse` 实现，支持 PDF、Office 文档和图片的文本提取。**所有原生依赖均通过 npm 包的预编译二进制捆绑，无需安装系统级库。**
+文档解析通过 `@llamaindex/liteparse` 实现，支持 PDF、Office 文档和图片的文本提取。
+
+**Office 文档解析需要系统级依赖：** liteparse 通过 headless LibreOffice 将 Office 文档（`.docx`、`.xlsx`、`.pptx` 等）转换为 PDF 后再提取文本。
+
+| 平台 | 安装命令 |
+|------|----------|
+| macOS | `brew install --cask libreoffice` |
+| Ubuntu/Debian | `apt-get install libreoffice` |
+| Windows | `choco install libreoffice-fresh` |
+
+其他格式的依赖通过 npm 包预编译二进制捆绑，无需安装系统级库：
 
 - PDF 解析：`@hyzyla/pdfium`（WASM），`pdfjs-dist`（WASM）
-- Office 文档：`@llamaindex/liteparse` 内置解析器
 - 图片/OCR：`sharp`（捆绑 libvips 预编译），`tesseract.js`（WASM）
 - 支持的格式：`.pdf` `.docx` `.xlsx` `.pptx` `.png` `.jpg` `.jpeg` `.gif` `.webp` `.tiff`
 - 文件大小上限：100MB

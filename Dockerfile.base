@@ -14,7 +14,9 @@
 FROM node:22-bookworm
 
 # ---- 系统包安装 -------------------------------------------------------------
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# 切换 Debian 源到清华镜像，解决国内网络访问 deb.debian.org 不稳定的问题
+RUN sed -i 's|http://deb.debian.org/debian|http://mirrors.tuna.tsinghua.edu.cn/debian|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends \
     # node-pty 的 node-gyp 编译（python 由 Miniforge 提供）
     make \
     g++ \
@@ -29,6 +31,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bubblewrap \
     socat \
     ripgrep \
+    # 文档解析（Office 格式转换）
+    libreoffice \
     && rm -rf /var/lib/apt/lists/*
 
 # ---- Miniforge（Python >= 3.11 科学计算环境）---------------------------------
