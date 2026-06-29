@@ -464,7 +464,7 @@ function SkillLibraryModal({ onClose }: { onClose: () => void }) {
 					) : (
 						groups.map(([category, items]) => (
 							<div key={category}>
-								<div className="sticky top-0 z-10 border-b border-[var(--inno-border)] bg-[var(--inno-surface-muted)]/95 px-4 py-1.5 text-[11px] font-medium uppercase tracking-wide text-[var(--inno-text-muted)] backdrop-blur">
+								<div className="sticky top-0 z-10 border-b border-[var(--inno-border)] bg-[var(--inno-surface-muted)] px-4 py-1.5 text-[11px] font-medium uppercase tracking-wide text-[var(--inno-text-muted)]">
 									{category} <span className="ml-1 text-[var(--inno-text-subtle)]">· {items.length}</span>
 								</div>
 								{items.map((item) => {
@@ -550,22 +550,22 @@ export function SkillsPanel() {
 	// List view — one skill per row
 	return (
 		<div className="relative flex h-full flex-col p-3">
-			<div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)]">
+			<div className="@container/skillspanel flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)]">
 				{/* Toolbar */}
-				<div className="flex items-center justify-between gap-3 border-b border-[var(--inno-border)] px-3 py-2.5">
-					<h3 className="text-sm font-medium text-[var(--inno-text)]">{t("skills.title")}</h3>
-					<div className="flex shrink-0 items-center gap-2">
+				<div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 border-b border-[var(--inno-border)] px-3 py-2">
+					<h3 className="min-w-0 truncate text-sm font-medium text-[var(--inno-text)]">{t("skills.title")}</h3>
+					<div className="flex shrink-0 items-center gap-1.5">
 						<input ref={uploadRef} type="file" className="hidden" accept=".zip,application/zip,.md,text/markdown,text/plain" onChange={handleUpload} />
-						<button className="flex h-7 items-center gap-1 rounded-md border border-[var(--inno-border)] px-2.5 text-xs text-[var(--inno-text-muted)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]" onClick={() => skillsStore.openLibrary()}>
+						<button className="flex h-7 items-center gap-1 rounded-md border border-[var(--inno-border)] px-2 text-xs text-[var(--inno-text-muted)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]" title={t("skills.library")} onClick={() => skillsStore.openLibrary()}>
 							<Library size={13} />
-							{t("skills.library")}
+							<span className="hidden @[26rem]/skillspanel:inline">{t("skills.library")}</span>
 						</button>
-						<button className="flex h-7 items-center gap-1 rounded-md border border-[var(--inno-border)] px-2.5 text-xs text-[var(--inno-text-muted)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]" onClick={() => void skillsStore.reload()}>
+						<button className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--inno-border)] text-[var(--inno-text-muted)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]" title={t("preview.refresh", "Refresh")} onClick={() => void skillsStore.reload()}>
 							<RefreshCw size={13} />
 						</button>
-						<button className="flex h-7 items-center gap-1 rounded-md inno-primary-button px-2.5 text-xs text-white disabled:opacity-50" disabled={state.isUploading} onClick={() => uploadRef.current?.click()}>
+						<button className="flex h-7 items-center gap-1 rounded-md inno-primary-button px-2 text-xs text-white disabled:opacity-50" disabled={state.isUploading} title={state.isUploading ? t("skills.uploading") : t("skills.upload")} onClick={() => uploadRef.current?.click()}>
 							<Upload size={13} />
-							{state.isUploading ? t("skills.uploading") : t("skills.upload")}
+							<span className="hidden @[26rem]/skillspanel:inline">{state.isUploading ? t("skills.uploading") : t("skills.upload")}</span>
 						</button>
 					</div>
 				</div>
@@ -614,7 +614,7 @@ export function SkillsPanel() {
 					) : (
 						groups.map(([category, items]) => (
 							<div key={category}>
-								<div className="sticky top-0 z-10 border-b border-[var(--inno-border)] bg-[var(--inno-surface-muted)]/95 px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-[var(--inno-text-muted)] backdrop-blur">
+								<div className="sticky top-0 z-10 border-b border-[var(--inno-border)] bg-[var(--inno-surface-muted)] px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-[var(--inno-text-muted)]">
 									{category} <span className="ml-1 text-[var(--inno-text-subtle)]">· {items.length}</span>
 								</div>
 								{items.map((skill) => (
