@@ -7,7 +7,7 @@ export interface RawUploadResult {
 	rawPath: string;
 }
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
+export function arrayBufferToBase64(buffer: ArrayBuffer): string {
 	let binary = "";
 	const bytes = new Uint8Array(buffer);
 	const chunkSize = 0x8000;

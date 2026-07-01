@@ -14,7 +14,8 @@ import { appStore } from "../stores/app-store.js";
 import type { CreateSessionInput } from "../api/sessions.js";
 import { listRemotePresets } from "../api/presets.js";
 import type { PresetMeta } from "../types/presets.js";
-import { uploadRawFile, type RawUploadResult } from "../api/uploads.js";
+import { arrayBufferToBase64 } from "../api/uploads.js";
+import { uploadWorkspaceFiles } from "../api/workspace.js";
 import { normalizeMarkdownMath } from "../utils/markdown-math.js";
 import { groupByCategory, matchesQuery } from "../utils/category-grouping.js";
 import { useStoreSnapshot } from "./hooks.js";
@@ -329,7 +330,7 @@ export function ChatCenter() {
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const imageInputRef = useRef<HTMLInputElement | null>(null);
 	const scrollRef = useRef<HTMLDivElement | null>(null);
-	const [uploads, setUploads] = useState<RawUploadResult[]>([]);
+	const [uploads, setUploads] = useState<{ fileName: string; path: string }[]>([]);
 	const [isUploading, setIsUploading] = useState(false);
 	const [inlineImages, setInlineImages] = useState<(InlineImage & { name: string; previewUrl: string })[]>([]);
 
@@ -380,6 +381,11 @@ export function ChatCenter() {
 	const workspaces = useStoreSnapshot(workspacesStore, () => ({
 		list: workspacesStore.workspaces,
 	}));
+	// Active workspace for the current session — drives upload target + button
+	// availability. Synced by sessionsStore on openSession/createSession, and
+	// pre-seeded by the useEffect below when the welcome screen's "existing"
+	// workspace picker selects one.
+	const activeWorkspaceId = useStoreSnapshot(workspaceStore, () => workspaceStore.activeWorkspaceId);
 
 	// Workspace preselected from the sidebar ("+ 新建对话" on a group), if any.
 	const preselectedWs = useMemo(
@@ -503,7 +509,7 @@ export function ChatCenter() {
 		if ((!input && uploads.length === 0 && inlineImages.length === 0) || chat.isSending || isUploading) return;
 
 		const uploadNote = uploads.length > 0
-			? `\n\n[已上传到 L2 raw 原始数据]\n${uploads.map((file: RawUploadResult) => `- ${file.fileName}: ${file.rawPath}`).join("\n")}`
+			? `\n\n[已上传到工作区]\n${uploads.map((file) => `- ${file.fileName}: ${file.path}`).join("\n")}`
 			: "";
 		const messageContent = `${input}${uploadNote}` || (inlineImages.length > 0 ? "请描述这张图片" : "");
 		const imagesToSend = inlineImages.length > 0
@@ -602,16 +608,27 @@ export function ChatCenter() {
 	const handleFiles = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
 		const files = Array.from(event.target.files ?? []);
 		if (files.length === 0) return;
+		const wsId = workspaceStore.activeWorkspaceId;
+		if (!wsId) return;
 		setIsUploading(true);
 		void (async () => {
 			try {
-				const uploaded = await Promise.all(files.map((file: File) => uploadRawFile(file)));
-				setUploads((current: RawUploadResult[]) => [...current, ...uploaded]);
+				const items = await Promise.all(files.map(async (file: File) => ({
+					path: file.name.replace(/[\\/?%*:|"<>]/g, "_").trim() || `upload-${Date.now()}`,
+					dataBase64: arrayBufferToBase64(await file.arrayBuffer()),
+				})));
+				const result = await uploadWorkspaceFiles(items, wsId);
+				const uploadedNodes = result.uploaded ?? [];
+				setUploads((current) => [...current, ...uploadedNodes.map((n) => ({ fileName: n.name, path: n.path }))]);
+				// Reveal the workspace panel so the new file is visible in the tree.
+				appStore.setRightPanelTab("preview");
+				if (appStore.workspaceMode === "collapsed") appStore.setWorkspaceMode("quarter");
+				void workspaceStore.loadTree();
 			} catch (err) {
 				const message = err instanceof Error ? err.message : "Unknown upload error";
-				setUploads((current: RawUploadResult[]) => [
+				setUploads((current) => [
 					...current,
-					{ fileName: "Upload failed", mimeType: "text/plain", size: 0, rawPath: message },
+					{ fileName: "Upload failed", path: message },
 				]);
 			} finally {
 				setIsUploading(false);
@@ -621,16 +638,16 @@ export function ChatCenter() {
 	}, []);
 
 	const removeUpload = useCallback((index: number) => {
-		setUploads((current: RawUploadResult[]) => current.filter((_, i: number) => i !== index));
+		setUploads((current) => current.filter((_, i: number) => i !== index));
 	}, []);
 
 	const renderUploadChips = () => (
 		uploads.length > 0 ? (
 			<div className="mb-2 flex flex-wrap gap-1.5">
-				{uploads.map((file: RawUploadResult, index: number) => (
-					<span key={`${file.rawPath}-${index}`} className="inline-flex items-center gap-1 rounded-md border border-[var(--inno-border)] bg-[var(--inno-surface-muted)] px-2 py-1 text-xs shadow-sm">
+				{uploads.map((file, index: number) => (
+					<span key={`${file.path}-${index}`} className="inline-flex items-center gap-1 rounded-md border border-[var(--inno-border)] bg-[var(--inno-surface-muted)] px-2 py-1 text-xs shadow-sm">
 						<span className="max-w-[220px] truncate">{file.fileName}</span>
-						<span className="text-[var(--inno-text-muted)]">{file.rawPath}</span>
+						<span className="text-[var(--inno-text-muted)]">{file.path}</span>
 						<button className="text-[var(--inno-text-muted)] hover:text-[var(--inno-text)]" title="Remove upload" onClick={() => removeUpload(index)}>
 							<X size={14} />
 						</button>
@@ -663,7 +680,7 @@ export function ChatCenter() {
 		<div className="inno-composer flex items-end gap-2 rounded-lg p-2">
 			<input ref={fileInputRef} id="file-input" type="file" className="hidden" multiple onChange={handleFiles} />
 			<input ref={imageInputRef} id="image-input" type="file" className="hidden" multiple accept="image/*" onChange={handleImageFiles} />
-			<button className="inno-icon-button flex h-9 w-9 shrink-0 rounded-md disabled:opacity-50" title="Upload files to L2 raw" disabled={chat.isSending || isUploading} onClick={() => fileInputRef.current?.click()}>
+			<button className="inno-icon-button flex h-9 w-9 shrink-0 rounded-md disabled:opacity-50" title={activeWorkspaceId ? "Upload files to workspace" : "请先选择已有工作区或开始对话后再上传文件"} disabled={chat.isSending || isUploading || !activeWorkspaceId} onClick={() => fileInputRef.current?.click()}>
 				{isUploading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Paperclip size={18} />}
 			</button>
 			<button className="inno-icon-button flex h-9 w-9 shrink-0 rounded-md disabled:opacity-50" title="Attach image" disabled={chat.isSending} onClick={() => imageInputRef.current?.click()}>
