@@ -28,6 +28,25 @@
 	--inno-ring: 0 0 0 3px rgba(52, 54, 58, 0.14);
 	--inno-selection-bg: rgba(52, 54, 58, 0.12);
 	--inno-grid-color: rgba(31, 35, 40, 0.025);
+
+	/* Transition tokens — custom cubic-bezier per Emil's design engineering.
+	   `ease`/`ease-in` feel sluggish; these give punchy, responsive motion. */
+	--inno-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+	--inno-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+	--inno-dur-fast: 120ms;
+	--inno-dur-ui: 160ms;
+	--inno-dur-modal: 220ms;
+
+	/* Semantic state colors — derive from the palette above via color-mix so
+	   they adapt to every theme automatically. No per-theme overrides needed. */
+	--inno-danger-bg: color-mix(in srgb, var(--inno-danger) 10%, transparent);
+	--inno-danger-border: color-mix(in srgb, var(--inno-danger) 22%, transparent);
+	--inno-success-bg: color-mix(in srgb, var(--inno-success) 10%, transparent);
+	--inno-success-border: color-mix(in srgb, var(--inno-success) 22%, transparent);
+	--inno-warning-bg: color-mix(in srgb, var(--inno-warning) 12%, transparent);
+	--inno-warning-border: color-mix(in srgb, var(--inno-warning) 22%, transparent);
+	--inno-focus-border: var(--inno-accent);
+
 	color: var(--inno-text);
 	background: var(--inno-background);
 	font-synthesis-weight: none;
