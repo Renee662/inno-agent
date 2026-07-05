@@ -388,8 +388,8 @@ function SkillLibraryModal({ onClose }: { onClose: () => void }) {
 
 	const uncategorizedLabel = t("skills.uncategorized");
 	const groups = useMemo(
-		() => groupByCategory(state.library.filter((item) => matchesQuery(item, query)), uncategorizedLabel),
-		[state.library, query, uncategorizedLabel],
+		() => groupByCategory(state.library.filter((item) => matchesQuery(item, query, item.category ? t(`categories.${item.category}`, item.category) : undefined)), uncategorizedLabel),
+		[state.library, query, uncategorizedLabel, t],
 	);
 	const totalMatched = useMemo(() => groups.reduce((sum, [, items]) => sum + items.length, 0), [groups]);
 
@@ -467,7 +467,7 @@ function SkillLibraryModal({ onClose }: { onClose: () => void }) {
 						groups.map(([category, items]) => (
 							<div key={category}>
 								<div className="sticky top-0 z-10 border-b border-[var(--inno-border)] bg-[var(--inno-surface-muted)] px-4 py-1.5 text-[11px] font-medium uppercase tracking-wide text-[var(--inno-text-muted)]">
-									{category} <span className="ml-1 text-[var(--inno-text-subtle)]">· {items.length}</span>
+									{t(`categories.${category}`, category)} <span className="ml-1 text-[var(--inno-text-subtle)]">· {items.length}</span>
 								</div>
 								{items.map((item) => {
 									const isImporting = state.importing.has(item.name);
@@ -533,8 +533,8 @@ export function SkillsPanel() {
 
 	const uncategorizedLabel = t("skills.uncategorized");
 	const groups = useMemo(
-		() => groupByCategory(state.skills.filter((s) => matchesQuery(s, query)), uncategorizedLabel),
-		[state.skills, query, uncategorizedLabel],
+		() => groupByCategory(state.skills.filter((s) => matchesQuery(s, query, s.category ? t(`categories.${s.category}`, s.category) : undefined)), uncategorizedLabel),
+		[state.skills, query, uncategorizedLabel, t],
 	);
 	const totalMatched = useMemo(() => groups.reduce((sum, [, items]) => sum + items.length, 0), [groups]);
 
@@ -617,7 +617,7 @@ export function SkillsPanel() {
 						groups.map(([category, items]) => (
 							<div key={category}>
 								<div className="sticky top-0 z-10 border-b border-[var(--inno-border)] bg-[var(--inno-surface-muted)] px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-[var(--inno-text-muted)]">
-									{category} <span className="ml-1 text-[var(--inno-text-subtle)]">· {items.length}</span>
+									{t(`categories.${category}`, category)} <span className="ml-1 text-[var(--inno-text-subtle)]">· {items.length}</span>
 								</div>
 								{items.map((skill) => (
 									<SkillRow key={skill.name} skill={skill} onClick={() => void skillsStore.selectSkill(skill.name)} />
