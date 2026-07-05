@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Paperclip, X, SendHorizonal, Square, RotateCcw, Image, AlertTriangle, Search } from "lucide-react";
 import { Spinner } from "./ui/Spinner.js";
 import type { ChatMessage } from "../types/chat.js";
@@ -246,12 +247,12 @@ function PresetPicker({
 	onOpen: (id: string) => void;
 	query: string;
 	onQueryChange: (v: string) => void;
-	t: (key: string) => string;
+	t: TFunction;
 }) {
 	const uncategorizedLabel = t("presets.uncategorized");
 	const groups = useMemo(
-		() => groupByCategory(presets.filter((p) => matchesQuery(p, query)), uncategorizedLabel),
-		[presets, query, uncategorizedLabel],
+		() => groupByCategory(presets.filter((p) => matchesQuery(p, query, p.category ? t(`categories.${p.category}`, p.category) : undefined)), uncategorizedLabel),
+		[presets, query, uncategorizedLabel, t],
 	);
 	const totalMatched = useMemo(() => groups.reduce((sum, [, items]) => sum + items.length, 0), [groups]);
 	const showSearch = presets.length >= 4;
@@ -296,7 +297,7 @@ function PresetPicker({
 							    when nothing has been categorized yet. */}
 							{groups.length > 1 ? (
 								<div className="mb-1.5 px-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--inno-text-subtle)]">
-									{category} <span className="ml-1 text-[var(--inno-text-subtle)]">· {items.length}</span>
+									{t(`categories.${category}`, category)} <span className="ml-1 text-[var(--inno-text-subtle)]">· {items.length}</span>
 								</div>
 							) : null}
 							<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -488,12 +489,12 @@ export function ChatCenter() {
 		if (wsMode === "temp") return { newWorkspace: { isTemp: true } };
 		if (wsMode === "new") {
 			const trimmed = wsName.trim();
-			if (!trimmed) return { __error: "请填写工作区名称" };
+			if (!trimmed) return { __error: t("chat.errWsName") };
 			return { newWorkspace: { name: trimmed, isTemp: false } };
 		}
-		if (!wsExistingId) return { __error: "请选择一个工作区" };
+		if (!wsExistingId) return { __error: t("chat.errWsSelect") };
 		return { workspaceId: wsExistingId };
-	}, [simpleMode, wsMode, wsName, wsExistingId]);
+	}, [simpleMode, wsMode, wsName, wsExistingId, t]);
 
 	// Load presets from the remote content hub once when the welcome screen is
 	// shown in Simple Mode. Falls back to an empty list on failure (offline /
@@ -516,12 +517,12 @@ export function ChatCenter() {
 				appStore.setWorkspaceWidth(560);
 				appStore.setWorkspaceMode("half");
 			} catch (err) {
-				setWsError(err instanceof Error ? err.message : "打开预设失败");
+				setWsError(err instanceof Error ? err.message : t("chat.errOpenPreset"));
 			} finally {
 				setOpeningPresetId(null);
 			}
 		})();
-	}, []);
+	}, [t]);
 
 	const handleSend = useCallback(() => {
 		const rawValue = inputRef.current?.value ?? "";
@@ -537,9 +538,9 @@ export function ChatCenter() {
 		if ((!input && uploads.length === 0 && inlineImages.length === 0) || chat.isSending || isUploading) return;
 
 		const uploadNote = uploads.length > 0
-			? `\n\n[已上传到工作区]\n${uploads.map((file) => `- ${file.fileName}: ${file.path}`).join("\n")}`
+			? `\n\n${t("chat.uploadedToWorkspace")}\n${uploads.map((file) => `- ${file.fileName}: ${file.path}`).join("\n")}`
 			: "";
-		const messageContent = `${input}${uploadNote}` || (inlineImages.length > 0 ? "请描述这张图片" : "");
+		const messageContent = `${input}${uploadNote}` || (inlineImages.length > 0 ? t("chat.describeImage") : "");
 		const imagesToSend = inlineImages.length > 0
 			? inlineImages.map(({ data, mimeType }) => ({ data, mimeType }))
 			: undefined;
@@ -570,7 +571,7 @@ export function ChatCenter() {
 					await sessionsStore.createSessionWith(wsInput);
 					void chatStore.send(messageContent, imagesToSend);
 				} catch (err) {
-					setWsError(err instanceof Error ? err.message : "创建会话失败");
+					setWsError(err instanceof Error ? err.message : t("chat.errCreateSession"));
 				}
 			})();
 			return;
@@ -580,7 +581,7 @@ export function ChatCenter() {
 		setUploads([]);
 		setInlineImages([]);
 		void chatStore.send(messageContent, imagesToSend);
-	}, [isWelcome, buildSessionInput, uploads, inlineImages, chat.isSending, isUploading, simpleMode, wsMode, wsExistingId, pasteBlock]);
+	}, [isWelcome, buildSessionInput, uploads, inlineImages, chat.isSending, isUploading, simpleMode, wsMode, wsExistingId, pasteBlock, t]);
 
 	const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
 		// Don't fire Send while the user is composing with an IME (e.g. picking
@@ -763,10 +764,10 @@ export function ChatCenter() {
 		<div className="inno-composer flex items-end gap-2 rounded-lg p-2">
 			<input ref={fileInputRef} id="file-input" type="file" className="hidden" multiple onChange={handleFiles} />
 			<input ref={imageInputRef} id="image-input" type="file" className="hidden" multiple accept="image/*" onChange={handleImageFiles} />
-			<button className="inno-icon-button flex h-9 w-9 shrink-0 rounded-md disabled:opacity-50" title={activeWorkspaceId ? "Upload files to workspace" : "请先选择已有工作区或开始对话后再上传文件"} disabled={chat.isSending || isUploading || !activeWorkspaceId} onClick={() => fileInputRef.current?.click()}>
+			<button className="inno-icon-button flex h-9 w-9 shrink-0 rounded-md disabled:opacity-50" title={activeWorkspaceId ? t("chat.uploadFiles") : t("chat.uploadHint")} disabled={chat.isSending || isUploading || !activeWorkspaceId} onClick={() => fileInputRef.current?.click()}>
 				{isUploading ? <Spinner size={16} /> : <Paperclip size={16} />}
 			</button>
-			<button className="inno-icon-button flex h-9 w-9 shrink-0 rounded-md disabled:opacity-50" title="Attach image" disabled={chat.isSending} onClick={() => imageInputRef.current?.click()}>
+			<button className="inno-icon-button flex h-9 w-9 shrink-0 rounded-md disabled:opacity-50" title={t("chat.attachImage")} disabled={chat.isSending} onClick={() => imageInputRef.current?.click()}>
 				<Image size={16} />
 			</button>
 			<textarea
@@ -783,7 +784,7 @@ export function ChatCenter() {
 			{chat.isSending ? (
 				<button
 					className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--inno-danger)] text-white transition-opacity hover:opacity-90 active:scale-[0.97]"
-					title="Stop generation"
+					title={t("chat.stopGeneration")}
 					onClick={handleStop}
 				>
 					<Square size={16} />
@@ -793,7 +794,7 @@ export function ChatCenter() {
 					{chat.lastUserPrompt ? (
 						<button
 							className="inno-icon-button flex h-9 w-9 shrink-0 rounded-md disabled:opacity-50"
-							title="Retry last message"
+							title={t("chat.retryLast")}
 							disabled={isUploading}
 							onClick={handleRetry}
 						>
@@ -802,7 +803,7 @@ export function ChatCenter() {
 					) : null}
 					<button
 						className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors ${isUploading ? "cursor-not-allowed bg-[var(--inno-surface-muted)] text-[var(--inno-text-muted)]" : "inno-primary-button"}`}
-						title="Send"
+						title={t("chat.send")}
 						disabled={isUploading}
 						onClick={handleSend}
 					>
@@ -824,8 +825,8 @@ export function ChatCenter() {
 								type="button"
 								onClick={toggleMode}
 								disabled={togglingMode}
-								title={simpleMode ? "当前:简单模式 · 点击切换到普通模式" : "当前:普通模式 · 点击切换到简单模式"}
-								aria-label={simpleMode ? "切换到普通模式" : "切换到简单模式"}
+								title={simpleMode ? t("mode.currentSimpleClickNormal") : t("mode.currentNormalClickSimple")}
+								aria-label={simpleMode ? t("mode.switchToNormal") : t("mode.switchToSimple")}
 								className="flip-card-scene mb-3 rounded-xl outline-none focus-visible:shadow-[var(--inno-ring)] disabled:cursor-wait"
 							>
 								<motion.div
@@ -858,14 +859,14 @@ export function ChatCenter() {
 								className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-[var(--inno-border)] bg-[var(--inno-surface)] px-2.5 py-1 text-[11px] text-[var(--inno-text-muted)] transition-colors hover:border-[var(--inno-accent)] hover:text-[var(--inno-accent)] disabled:cursor-wait disabled:opacity-60"
 							>
 								<span className={`h-1.5 w-1.5 rounded-full ${simpleMode ? "bg-[var(--inno-accent)]" : "bg-[var(--inno-border-strong)]"}`} />
-								{simpleMode ? "简单模式 · 切换到普通模式" : "普通模式 · 切换到简单模式"}
+								{simpleMode ? t("mode.simpleShort") : t("mode.normalShort")}
 							</button>
 						</div>
 
 						{renderUploadChips()}
 						{renderInlineImagePreviews()}
 						{renderQuestionHint()}
-						{renderComposer("有什么想学习或实践的?发送消息开始…")}
+						{renderComposer(t("chat.welcomePlaceholder"))}
 
 						{simpleMode && presets.length > 0 ? (
 							<PresetPicker
@@ -880,24 +881,24 @@ export function ChatCenter() {
 
 						{simpleMode ? null : preselectedWs ? (
 							<div className="mt-3 flex flex-wrap items-center gap-2">
-								<span className="text-xs text-[var(--inno-text-subtle)]">工作区</span>
+								<span className="text-xs text-[var(--inno-text-subtle)]">{t("workspace.title")}</span>
 								<span className="rounded-full bg-[var(--inno-accent-soft)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--inno-accent)]">
 									{preselectedWs.name}
 								</span>
-								<span className="text-[10px] text-[var(--inno-text-subtle)]">新对话将创建于此工作区</span>
+								<span className="text-[10px] text-[var(--inno-text-subtle)]">{t("chat.newChatHere")}</span>
 							</div>
 						) : (
 							<div className="mt-3 flex flex-wrap items-center gap-2">
-								<span className="text-xs text-[var(--inno-text-subtle)]">工作区</span>
-								<ModeChip selected={wsMode === "temp"} onClick={() => setWsMode("temp")}>临时·用完即弃</ModeChip>
-								<ModeChip selected={wsMode === "new"} onClick={() => setWsMode("new")}>新建工作区</ModeChip>
+								<span className="text-xs text-[var(--inno-text-subtle)]">{t("workspace.title")}</span>
+								<ModeChip selected={wsMode === "temp"} onClick={() => setWsMode("temp")}>{t("chat.wsTemp")}</ModeChip>
+								<ModeChip selected={wsMode === "new"} onClick={() => setWsMode("new")}>{t("chat.wsNew")}</ModeChip>
 								{selectableWorkspaces.length > 0 ? (
-									<ModeChip selected={wsMode === "existing"} onClick={() => setWsMode("existing")}>已有工作区</ModeChip>
+									<ModeChip selected={wsMode === "existing"} onClick={() => setWsMode("existing")}>{t("chat.wsExisting")}</ModeChip>
 								) : null}
 								{wsMode === "new" ? (
 									<input
 										type="text"
-										placeholder="工作区名称,例如:pandas demo"
+										placeholder={t("chat.wsNamePlaceholder")}
 										value={wsName}
 										onChange={(e) => setWsName(e.target.value)}
 										className="ml-1 w-[200px] rounded-full border border-[var(--inno-border)] bg-[var(--inno-surface)] px-2 py-px text-[10px] leading-tight outline-none focus-visible:border-[var(--inno-focus-border)] focus-visible:outline-none focus-visible:shadow-[var(--inno-ring)]"
@@ -909,7 +910,7 @@ export function ChatCenter() {
 										onChange={(e) => setWsExistingId(e.target.value)}
 										className="ml-1 max-w-[220px] rounded-full border border-[var(--inno-border)] bg-[var(--inno-surface)] px-2 py-px text-[10px] leading-tight outline-none focus-visible:border-[var(--inno-focus-border)] focus-visible:outline-none focus-visible:shadow-[var(--inno-ring)]"
 									>
-										<option value="">选择一个工作区…</option>
+										<option value="">{t("chat.wsSelectPlaceholder")}</option>
 										{selectableWorkspaces.map((w) => (
 											<option key={w.id} value={w.id}>{w.name}</option>
 										))}

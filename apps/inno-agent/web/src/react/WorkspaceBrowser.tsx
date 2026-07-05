@@ -843,10 +843,10 @@ export function WorkspaceBrowser() {
 				<div className="flex h-10 items-center gap-1 border-b border-[var(--inno-border)] bg-[var(--inno-surface-muted)] px-2">
 					<div className="min-w-0 flex-1">
 						<span className="block max-w-[220px] truncate px-1 text-xs font-medium text-[var(--inno-text)]" title={activeWorkspaceName}>
-							{activeWorkspaceName || "工作区"}
+							{activeWorkspaceName || t("workspace.title")}
 						</span>
 					</div>
-					<button disabled={busy} className="flex h-6 w-6 items-center justify-center rounded text-[var(--inno-text-subtle)] transition-colors hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-accent)] disabled:opacity-40" title={t("files.uploadSkill", "上传技能包 (.zip/.md) 到 .skills")} onClick={() => skillUploadRef.current?.click()}>
+					<button disabled={busy} className="flex h-6 w-6 items-center justify-center rounded text-[var(--inno-text-subtle)] transition-colors hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-accent)] disabled:opacity-40" title={t("files.uploadSkill", "Upload skill package (.zip/.md) to .skills")} onClick={() => skillUploadRef.current?.click()}>
 						<Sparkles size={14} />
 					</button>
 					<button disabled={busy} className="flex h-6 w-6 items-center justify-center rounded text-[var(--inno-text-subtle)] transition-colors hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)] disabled:opacity-40" title={t("preview.refresh", "Refresh")} onClick={() => void workspaceStore.loadTree()}>

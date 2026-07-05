@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import {
 	PanelLeftOpen,
@@ -163,11 +164,12 @@ function GroupHeader({
 	onEditCancel: () => void;
 	onDelete: () => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<div className={`group/wsh sticky top-0 z-10 flex w-full items-center gap-1.5 px-2 py-1.5 ${active ? "bg-[var(--inno-surface-muted)]" : "bg-[var(--inno-sidebar-bg)]"}`}>
 			<button
 				className="shrink-0 text-[var(--inno-text-subtle)] transition-colors hover:text-[var(--inno-text-muted)]"
-				title={collapsed ? "展开" : "折叠"}
+				title={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
 				onClick={onToggle}
 			>
 				<ChevronRight
@@ -177,7 +179,7 @@ function GroupHeader({
 			</button>
 			<button
 				className="inno-sidebar-meta flex min-w-0 flex-1 items-center gap-1.5 font-semibold uppercase text-[var(--inno-text-subtle)] transition-colors hover:text-[var(--inno-text-muted)]"
-				title={group.canCreate ? "加载此工作区到预览面板" : undefined}
+				title={group.canCreate ? t("sidebar.loadWorkspace") : undefined}
 				onClick={onSelect}
 			>
 				<FolderKanban size={12} className="shrink-0 text-[var(--inno-text-subtle)]" />
@@ -204,7 +206,7 @@ function GroupHeader({
 					{group.canCreate ? (
 						<button
 							className="rounded p-0.5 text-[var(--inno-text-subtle)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]"
-							title="在此工作区新建对话"
+							title={t("sidebar.newChatInWorkspace")}
 							onClick={(e) => { e.stopPropagation(); onNewChat(); }}
 						>
 							<Plus size={12} />
@@ -214,14 +216,14 @@ function GroupHeader({
 						<>
 							<button
 								className="rounded p-0.5 text-[var(--inno-text-subtle)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]"
-								title="重命名工作区"
+								title={t("sidebar.renameWorkspace")}
 								onClick={(e) => { e.stopPropagation(); onStartEdit(); }}
 							>
 								<Pencil size={12} />
 							</button>
 							<button
 								className="rounded p-0.5 text-[var(--inno-text-subtle)] hover:bg-[var(--inno-danger-bg)] hover:text-[var(--inno-danger)]"
-								title="删除工作区"
+								title={t("sidebar.deleteWorkspace")}
 								onClick={(e) => { e.stopPropagation(); onDelete(); }}
 							>
 								<Trash2 size={12} />
@@ -270,6 +272,7 @@ function SessionCard({
 	onArchive: () => void;
 	onDelete: () => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<div
 			className={`group/card relative mb-1 w-full cursor-pointer rounded-lg border px-2.5 py-2 text-left transition-all duration-150 ${
@@ -322,7 +325,7 @@ function SessionCard({
 					{orderedSessionChannels(session).map(({ channel, isOrigin }) => (
 						<span
 							key={channel}
-							title={isOrigin ? `来源：${channelLabel(channel)}` : `交互过：${channelLabel(channel)}`}
+							title={isOrigin ? t("sidebar.originChannel", { channel: channelLabel(channel) }) : t("sidebar.interactedChannel", { channel: channelLabel(channel) })}
 							className={`rounded px-1.5 py-px text-[9px] font-medium leading-none ${isOrigin ? channelClass(channel) : channelInteractionClass(channel)}`}
 						>
 							{channelLabel(channel)}
@@ -335,7 +338,7 @@ function SessionCard({
 					) : null}
 					<button
 						className="rounded p-0.5 text-[var(--inno-text-subtle)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)] disabled:opacity-40"
-						title="AI generate topic"
+						title={t("sidebar.generateTopic")}
 						disabled={generatingId === session.id}
 						onClick={(e) => { e.stopPropagation(); onGenerate(); }}
 					>
@@ -347,21 +350,21 @@ function SessionCard({
 					</button>
 					<button
 						className="rounded p-0.5 text-[var(--inno-text-subtle)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]"
-						title="Rename"
+						title={t("sidebar.rename")}
 						onClick={(e) => { e.stopPropagation(); onStartEdit(); }}
 					>
 						<Pencil size={12} />
 					</button>
 					<button
 						className="rounded p-0.5 text-[var(--inno-text-subtle)] hover:bg-[var(--inno-surface-muted)] hover:text-[var(--inno-text)]"
-						title={session.archived ? "Unarchive" : "Archive"}
+						title={session.archived ? t("sidebar.unarchive") : t("sidebar.archive")}
 						onClick={(e) => { e.stopPropagation(); onArchive(); }}
 					>
 						{session.archived ? <ArchiveRestore size={12} /> : <Archive size={12} />}
 					</button>
 					<button
 						className="rounded p-0.5 text-[var(--inno-text-subtle)] hover:bg-[var(--inno-danger-bg)] hover:text-[var(--inno-danger)]"
-						title="Delete"
+						title={t("common.delete")}
 						onClick={(e) => { e.stopPropagation(); onDelete(); }}
 					>
 						<Trash2 size={12} />
@@ -376,6 +379,7 @@ function SessionCard({
 /* ── Main sidebar ── */
 
 export function SessionSidebar({ collapsed }: SessionSidebarProps) {
+	const { t } = useTranslation();
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [editingName, setEditingName] = useState("");
 	const [generatingId, setGeneratingId] = useState<string | null>(null);
@@ -477,13 +481,13 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 		}
 		result.push(...tempGroups);
 		if (unknown.length > 0) {
-			result.push({ id: "__unknown__", name: "未分组", manageable: false, canCreate: false, sessions: unknown });
+			result.push({ id: "__unknown__", name: t("sidebar.ungrouped"), manageable: false, canCreate: false, sessions: unknown });
 		}
 		if (archived.length > 0) {
-			result.push({ id: "archived", name: "已归档", manageable: false, canCreate: false, sessions: archived });
+			result.push({ id: "archived", name: t("sidebar.archived"), manageable: false, canCreate: false, sessions: archived });
 		}
 		return result;
-	}, [wsState.list, state.filteredSessions, state.searchQuery, state.channelFilter, simpleMode]);
+	}, [wsState.list, state.filteredSessions, state.searchQuery, state.channelFilter, simpleMode, t]);
 
 	// Simple Mode (P7): a flat, recency-sorted list of web conversations — the
 	// lightweight way back to a previously generated artifact (PPT, lesson plan,
@@ -567,10 +571,10 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 	}, []);
 
 	const handleDelete = useCallback((session: SessionMeta) => {
-		const confirmed = typeof window === "undefined" ? true : window.confirm(`删除会话「${session.name}」？此操作不可撤回。`);
+		const confirmed = typeof window === "undefined" ? true : window.confirm(t("sidebar.confirmDeleteSession", { name: session.name }));
 		if (!confirmed) return;
 		void sessionsStore.deleteSession(session.id);
-	}, []);
+	}, [t]);
 
 	const toggleGroup = useCallback((key: string) => {
 		setCollapsedGroups((prev) => {
@@ -590,17 +594,17 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 
 	const handleDeleteWorkspace = useCallback((group: WsGroup) => {
 		const detail = group.sessions.length > 0
-			? `其中的 ${group.sessions.length} 个会话将解绑(归入临时工作区),会话记录与文件不会被删除。`
-			: `该工作区当前没有会话,工作区记录将被移除。`;
+			? t("sidebar.deleteWsWithSessions", { count: group.sessions.length })
+			: t("sidebar.deleteWsEmpty");
 		const confirmed = typeof window === "undefined" ? true : window.confirm(
-			`删除工作区「${group.name}」？\n${detail}`,
+			t("sidebar.confirmDeleteWorkspace", { name: group.name, detail }),
 		);
 		if (!confirmed) return;
 		void (async () => {
 			await workspacesStore.remove(group.id);
 			await Promise.all([workspacesStore.load(), sessionsStore.refresh()]);
 		})();
-	}, []);
+	}, [t]);
 
 	/* ── Collapsed sidebar ── */
 
@@ -609,7 +613,7 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 			<aside className="relative h-full w-0 overflow-visible">
 				<button
 					className="absolute left-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-lg text-[var(--inno-text-subtle)] transition-colors hover:bg-white/90 hover:text-[var(--inno-text)] hover:shadow-sm"
-					title="Expand"
+					title={t("sidebar.expand")}
 					onClick={() => appStore.setSidebarCollapsed(false)}
 				>
 					<PanelLeftOpen size={16} />
@@ -630,8 +634,8 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 							type="button"
 							onClick={toggleMode}
 							disabled={togglingMode}
-							title={simpleMode ? "当前:简单模式 · 点击切换到普通模式" : "当前:普通模式 · 点击切换到简单模式"}
-							aria-label={simpleMode ? "切换到普通模式" : "切换到简单模式"}
+							title={simpleMode ? t("mode.currentSimpleClickNormal") : t("mode.currentNormalClickSimple")}
+							aria-label={simpleMode ? t("mode.switchToNormal") : t("mode.switchToSimple")}
 							className="flip-card-scene shrink-0 rounded-lg outline-none focus-visible:shadow-[var(--inno-ring)] disabled:cursor-wait"
 						>
 							<motion.div
@@ -657,7 +661,7 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 					</div>
 					<button
 						className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--inno-text-subtle)] transition-colors hover:bg-[var(--inno-surface)] hover:text-[var(--inno-text-muted)]"
-						title="Collapse"
+						title={t("sidebar.collapse")}
 						onClick={() => appStore.setSidebarCollapsed(true)}
 					>
 						<PanelLeftClose size={14} />
@@ -666,13 +670,13 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 
 				{/* Recent conversations — the way back to a generated artifact */}
 				<div className="flex-1 min-h-0 overflow-y-auto px-1.5 py-2 sidebar-scroll">
-					<div className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-[var(--inno-text-subtle)]">最近</div>
+					<div className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-[var(--inno-text-subtle)]">{t("sidebar.recent")}</div>
 					{state.isLoading ? (
 						<div className="flex items-center justify-center py-8">
 							<Spinner size={16} className="text-[var(--inno-border-strong)]" />
 						</div>
 					) : recentSessions.length === 0 ? (
-						<div className="inno-sidebar-text px-2 py-8 text-center text-[var(--inno-text-subtle)]">暂无对话</div>
+						<div className="inno-sidebar-text px-2 py-8 text-center text-[var(--inno-text-subtle)]">{t("sidebar.noConversations")}</div>
 					) : (
 						recentSessions.map((session) => {
 							const ws = sessionToWorkspace.get(session.id);
@@ -698,7 +702,7 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 										<div className="inno-sidebar-title min-w-0 truncate font-medium text-[var(--inno-text)]">{session.name}</div>
 										<button
 											className="rounded p-0.5 text-[var(--inno-text-subtle)] opacity-0 transition-opacity hover:bg-[var(--inno-danger-bg)] hover:text-[var(--inno-danger)] group-hover/srow:opacity-100"
-											title="删除对话"
+											title={t("sidebar.deleteConversation")}
 											onClick={(e) => { e.stopPropagation(); handleDelete(session); }}
 										>
 											<Trash2 size={12} />
@@ -711,7 +715,7 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 										{ws ? (
 											<span
 												className="inline-flex max-w-[140px] items-center gap-1 rounded bg-[var(--inno-surface-muted)] px-1.5 py-px text-[9px] font-medium leading-none text-[var(--inno-text-muted)]"
-												title={`工作区:${ws.name}`}
+												title={t("sidebar.workspaceLabel", { name: ws.name })}
 											>
 												<FolderKanban size={12} className="shrink-0" />
 												<span className="truncate">{ws.name}</span>
@@ -731,7 +735,7 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 						className="inno-sidebar-text inno-new-chat-button flex w-full items-center justify-center gap-2 rounded-lg inno-primary-button px-3 py-1.5 font-medium text-white shadow-sm transition-colors"
 						onClick={newChat}
 					>
-						<Plus size={14} /> 新建对话
+						<Plus size={14} /> {t("sidebar.newChat")}
 					</button>
 				</div>
 			</aside>
@@ -750,8 +754,8 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 							type="button"
 							onClick={toggleMode}
 							disabled={togglingMode}
-							title={simpleMode ? "当前:简单模式 · 点击切换到普通模式" : "当前:普通模式 · 点击切换到简单模式"}
-							aria-label={simpleMode ? "切换到普通模式" : "切换到简单模式"}
+							title={simpleMode ? t("mode.currentSimpleClickNormal") : t("mode.currentNormalClickSimple")}
+							aria-label={simpleMode ? t("mode.switchToNormal") : t("mode.switchToSimple")}
 							className="flip-card-scene shrink-0 rounded-lg outline-none focus-visible:shadow-[var(--inno-ring)] disabled:cursor-wait"
 						>
 							<motion.div
@@ -773,14 +777,14 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 						</button>
 						<div className="min-w-0">
 							<h1 className="inno-sidebar-title font-semibold tracking-tight text-[var(--inno-text)]">
-								Inno Agent{simpleMode ? <span className="font-normal text-[var(--inno-accent)]">(简单模式)</span> : null}
+								Inno Agent{simpleMode ? <span className="font-normal text-[var(--inno-accent)]">{t("mode.simpleTag")}</span> : null}
 							</h1>
 						</div>
 					</div>
 					<div className="flex items-center gap-1">
 						<button
 							className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--inno-text-subtle)] transition-colors hover:bg-[var(--inno-surface)] hover:text-[var(--inno-text-muted)]"
-							title="Refresh"
+							title={t("common.refresh")}
 							onClick={() => void sessionsStore.load()}
 						>
 							<RefreshCw size={14} />
@@ -806,7 +810,7 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 								<Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--inno-text-subtle)]" />
 								<input
 									className="inno-sidebar-text w-full rounded-md border border-[var(--inno-border)] bg-[var(--inno-surface)] py-1 pl-7 pr-7 outline-none placeholder:text-[var(--inno-text-subtle)] focus-visible:border-[var(--inno-focus-border)] focus-visible:outline-none focus-visible:shadow-[var(--inno-ring)]"
-									placeholder="搜索对话..."
+									placeholder={t("sidebar.searchPlaceholder")}
 									value={state.searchQuery}
 									autoFocus
 									onChange={(e) => sessionsStore.setSearchQuery(e.target.value)}
@@ -834,7 +838,7 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 								className="inno-sidebar-text w-full rounded-md border border-[var(--inno-border)] bg-[var(--inno-surface)] py-1.5 pl-7 pr-3 text-left text-[var(--inno-text-subtle)] transition-colors hover:border-[var(--inno-border-strong)] hover:bg-[var(--inno-surface-muted)]"
 								onClick={() => setShowSearch(true)}
 							>
-								搜索对话...
+								{t("sidebar.searchPlaceholder")}
 							</button>
 						</div>
 					)}
@@ -856,7 +860,7 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 							className={`inno-channel-filter-chip inno-sidebar-meta rounded-full px-1.5 py-px font-medium transition-colors ${channelFilterClass(null, state.channelFilter === null)}`}
 							onClick={() => sessionsStore.setChannelFilter(null)}
 						>
-							全部
+							{t("sidebar.all")}
 						</button>
 					</div>
 				)}
@@ -870,7 +874,7 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 					</div>
 				) : groups.length === 0 ? (
 					<div className="inno-sidebar-text px-2 py-8 text-center text-[var(--inno-text-subtle)]">
-						{state.searchQuery || state.channelFilter ? "无匹配结果" : "暂无对话记录"}
+						{state.searchQuery || state.channelFilter ? t("sidebar.noMatch") : t("sidebar.noSessions")}
 					</div>
 				) : (
 					groups.map((group) => {
@@ -935,7 +939,7 @@ export function SessionSidebar({ collapsed }: SessionSidebarProps) {
 					className="inno-sidebar-text inno-new-chat-button flex w-full items-center justify-center gap-2 rounded-lg inno-primary-button px-3 py-1.5 font-medium text-white shadow-sm transition-colors"
 					onClick={newChat}
 				>
-					<Plus size={14} /> 新建对话
+					<Plus size={14} /> {t("sidebar.newChat")}
 				</button>
 			</div>
 		</aside>
