@@ -108,7 +108,7 @@ function buildWorkspaceContextSections(workspaceDir: string): string[] {
 			if (skills.length > 0) {
 				const block = formatSkillsForPrompt(skills);
 				if (block.trim()) {
-					sections.push(`# 本工作区私有技能${block}`);
+					sections.push(`# 本工作区私有技能\n${block}`);
 				}
 			}
 		} catch (err) {
