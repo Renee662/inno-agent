@@ -3,6 +3,7 @@ import { join, relative } from "node:path";
 import type { RuntimePaths } from "../runtime.js";
 import type { WorkspaceMeta, WorkspaceRegistry } from "../workspace/workspace-registry.js";
 import type { RemoteContentSource } from "../content-source/index.js";
+import { mapWithConcurrency } from "../content-source/types.js";
 import { logger } from "../logger.js";
 
 /**
@@ -139,24 +140,6 @@ export async function listRemotePresets(source: RemoteContentSource, forceRefres
 		return parsePresetMeta(text, item.name);
 	});
 	return metas.filter((m): m is PresetMeta => m !== null).sort((a, b) => a.name.localeCompare(b.name));
-}
-
-/** Map over items with a bounded number of in-flight async tasks, preserving order. */
-async function mapWithConcurrency<T, R>(
-	items: T[],
-	limit: number,
-	fn: (item: T, index: number) => Promise<R>,
-): Promise<R[]> {
-	const results = new Array<R>(items.length);
-	let next = 0;
-	const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-		while (next < items.length) {
-			const index = next++;
-			results[index] = await fn(items[index], index);
-		}
-	});
-	await Promise.all(workers);
-	return results;
 }
 
 /**
