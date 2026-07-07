@@ -792,6 +792,7 @@ function parseSkillFrontmatter(content: string): Record<string, string | boolean
 		const kv = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
 		if (!kv) continue;
 		const raw = kv[2].trim();
+		if (kv[1] in fm) continue; // 保留第一个值（标准YAML行为）
 		fm[kv[1]] = raw === "true" ? true : raw === "false" ? false : raw.replace(/^["']|["']$/g, "");
 	}
 	return fm;
