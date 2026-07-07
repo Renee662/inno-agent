@@ -53,6 +53,7 @@ import { questionBridge, type QuestionBridgeResult } from "./agent/question-brid
 import { DEFAULT_WORKSPACE_ID, TEMP_WORKSPACE_ID, WorkspaceRegistry } from "./workspace/workspace-registry.js";
 import { listPresets, listRemotePresets, ensurePresetCached, instantiatePreset } from "./presets/preset-store.js";
 import { createContentSource, type RemoteContentSource } from "./content-source/index.js";
+import { mapWithConcurrency } from "./content-source/types.js";
 import { RunRecordStore } from "./terminal/run-record-store.js";
 import { TerminalSessionManager } from "./terminal/terminal-session-manager.js";
 import type { ClientTerminalEvent, ServerTerminalEvent } from "./terminal/terminal-types.js";
@@ -1078,27 +1079,28 @@ async function listSkillLibrary(forceRefresh = false): Promise<SkillLibraryItem[
 			: [],
 	);
 
-	const result = await Promise.all(
-		items.map(async (item): Promise<SkillLibraryItem> => {
-			// Prefer inline meta (bundle service); otherwise read SKILL.md frontmatter.
-			let description = typeof item.meta?.description === "string" ? item.meta.description : "";
-			let category = typeof item.meta?.category === "string" ? item.meta.category.trim() : "";
-			if (!description || !category) {
-				const md = await source.readItemTextFile("skills", item.name, "SKILL.md");
-				if (md) {
-					const fields = extractFrontmatterFields(md);
-					if (!description) description = fields.description;
-					if (!category) category = fields.category;
-				}
+	// One SKILL.md read per item over raw.githubusercontent.com; cap concurrency
+	// so a large library doesn't burst past the raw CDN throttle (429) and lose
+	// descriptions. Matches the preset library's approach.
+	const result = await mapWithConcurrency(items, 5, async (item): Promise<SkillLibraryItem> => {
+		// Prefer inline meta (bundle service); otherwise read SKILL.md frontmatter.
+		let description = typeof item.meta?.description === "string" ? item.meta.description : "";
+		let category = typeof item.meta?.category === "string" ? item.meta.category.trim() : "";
+		if (!description || !category) {
+			const md = await source.readItemTextFile("skills", item.name, "SKILL.md");
+			if (md) {
+				const fields = extractFrontmatterFields(md);
+				if (!description) description = fields.description;
+				if (!category) category = fields.category;
 			}
-			return {
-				name: item.name,
-				description,
-				category: category || undefined,
-				installed: localNames.has(slugifySkillName(item.name)),
-			};
-		}),
-	);
+		}
+		return {
+			name: item.name,
+			description,
+			category: category || undefined,
+			installed: localNames.has(slugifySkillName(item.name)),
+		};
+	});
 	return result.sort((a, b) => a.name.localeCompare(b.name));
 }
 
