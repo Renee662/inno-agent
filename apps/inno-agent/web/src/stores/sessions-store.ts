@@ -149,6 +149,7 @@ class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 		const cached = this._messageCache.get(id);
 		if (cached) {
 			chatStore.loadHistory(cached);
+			void chatStore.loadPendingQuestionForSession(id);
 		} else {
 			chatStore.loadHistory([]);
 			chatStore.setLoadingHistory(true);
@@ -178,6 +179,7 @@ class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 				this._messageCache.set(id, session.messages);
 				chatStore.loadHistory(session.messages);
 			}
+			void chatStore.loadPendingQuestionForSession(id);
 
 			void activateSession(id).catch((err) => {
 				console.warn(`[sessions] failed to activate ${id}: ${err instanceof Error ? err.message : String(err)}`);

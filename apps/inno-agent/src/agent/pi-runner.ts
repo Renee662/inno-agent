@@ -195,8 +195,6 @@ export async function initSession(
 				baseUrl: providerConfig.baseUrl,
 				apiKey: providerConfig.apiKey || "local",
 				api: providerConfig.api ?? "openai-completions",
-				headers: providerConfig.headers,
-				authHeader: providerConfig.authHeader,
 				models: providerConfig.models.map(modelConfigToProviderModel),
 			});
 			_registeredProviderIds.add(providerId);
@@ -304,8 +302,6 @@ export async function refreshConfiguredProviders(config: InnoConfig): Promise<vo
 			baseUrl: providerConfig.baseUrl,
 			apiKey: providerConfig.apiKey || "local",
 			api: providerConfig.api ?? "openai-completions",
-			headers: providerConfig.headers,
-			authHeader: providerConfig.authHeader,
 			models: providerConfig.models.map(modelConfigToProviderModel),
 		});
 		_registeredProviderIds.add(providerId);
@@ -526,6 +522,11 @@ export async function switchSessionFile(sessionPath: string): Promise<void> {
 	});
 }
 
+export async function switchSessionFileImmediate(sessionPath: string): Promise<void> {
+	if (!_runtime) throw new Error("Session not initialized. Call initSession() first.");
+	await switchToSession(sessionPath);
+}
+
 /**
  * Force-reapply the workspace cwd for the given session.
  * Use after binding/rebinding a session to a different workspace, so the
@@ -537,6 +538,11 @@ export async function applyWorkspaceCwd(sessionPath: string): Promise<void> {
 	await enqueue(async () => {
 		await switchToSession(sessionPath, { force: true });
 	});
+}
+
+export async function applyWorkspaceCwdImmediate(sessionPath: string): Promise<void> {
+	if (!_runtime) return;
+	await switchToSession(sessionPath, { force: true });
 }
 
 /**
@@ -562,6 +568,18 @@ export async function createNewSession(): Promise<string> {
 		_currentCwd = _workspaceDir;
 		return sessionId;
 	});
+}
+
+export async function createNewSessionImmediate(): Promise<string> {
+	if (!_runtime) throw new Error("Session not initialized. Call initSession() first.");
+	await _runtime.newSession();
+	const sessionId = getCurrentSessionId();
+	const sessionFile = getSession().sessionFile;
+	if (sessionFile && !existsSync(sessionFile)) {
+		writeFileSync(sessionFile, "", "utf-8");
+	}
+	_currentCwd = _workspaceDir;
+	return sessionId;
 }
 
 /**
@@ -816,67 +834,85 @@ export function runPromptStreamingInSession(
 	images?: ImageContent[],
 ): Promise<string> {
 	return enqueue(async () => {
-		await switchToSession(sessionPath);
-		const session = getSession();
-		let output = "";
-		let streamError: string | undefined;
-		const promptStartTime = Date.now();
-
-		// Observability: agent lifecycle + tool-call details
-		const promptObserver = createPromptObserver({ promptStartTime });
-		const obsUnsub = session.subscribe(promptObserver);
-
-		const unsubscribe = session.subscribe((event) => {
-			onEvent(event);
-			if (event.type === "message_update") {
-				const ev = event.assistantMessageEvent;
-				if (ev.type === "text_delta") {
-					output += ev.delta;
-				} else if (ev.type === "error") {
-					streamError = ev.error.errorMessage || `LLM API error (stopReason: ${ev.error.stopReason})`;
-					logger.error({ errorMessage: streamError, stopReason: ev.error.stopReason, sessionPath, elapsedMs: Date.now() - promptStartTime }, "LLM API stream error in runPromptStreamingInSession");
-				}
-			} else if (event.type === "auto_retry_start") {
-				obsLogger.warn({
-					event: "auto_retry_start",
-					attempt: event.attempt,
-					maxAttempts: event.maxAttempts,
-					delayMs: event.delayMs,
-					errorMessage: event.errorMessage,
-					elapsedMs: Date.now() - promptStartTime,
-				}, "LLM API call failed, auto-retrying...");
-			} else if (event.type === "auto_retry_end") {
-				if (event.success) {
-					obsLogger.info({
-						event: "auto_retry_end",
-						success: true,
-						attempt: event.attempt,
-					}, "LLM API auto-retry succeeded");
-				} else {
-					obsLogger.error({
-						event: "auto_retry_end",
-						success: false,
-						finalError: event.finalError,
-						elapsedMs: Date.now() - promptStartTime,
-					}, "LLM API auto-retry failed");
-				}
-			}
-		});
-		try {
-			await session.prompt(prompt, images?.length ? { images } : undefined);
-		} finally {
-			unsubscribe();
-			obsUnsub();
-		}
-
-		if (streamError) {
-			throw new Error(streamError);
-		}
-
-		if (!output.trim()) {
-			obsLogger.warn({ event: "empty_output", fn: "runPromptStreamingInSession", sessionPath }, "runPromptStreamingInSession returned empty output — the model may have produced no text or an API error may have been swallowed");
-		}
-
-		return output.trim();
+		return streamPromptInSessionNow(sessionPath, prompt, onEvent, images, "runPromptStreamingInSession");
 	});
+}
+
+export function runPromptStreamingInSessionImmediate(
+	sessionPath: string,
+	prompt: string,
+	onEvent: StreamEventCallback,
+	images?: ImageContent[],
+): Promise<string> {
+	return streamPromptInSessionNow(sessionPath, prompt, onEvent, images, "runPromptStreamingInSessionImmediate");
+}
+
+async function streamPromptInSessionNow(
+	sessionPath: string,
+	prompt: string,
+	onEvent: StreamEventCallback,
+	images: ImageContent[] | undefined,
+	fnName: string,
+): Promise<string> {
+	await switchToSession(sessionPath);
+	const session = getSession();
+	let output = "";
+	let streamError: string | undefined;
+	const promptStartTime = Date.now();
+
+	const promptObserver = createPromptObserver({ promptStartTime });
+	const obsUnsub = session.subscribe(promptObserver);
+
+	const unsubscribe = session.subscribe((event) => {
+		onEvent(event);
+		if (event.type === "message_update") {
+			const ev = event.assistantMessageEvent;
+			if (ev.type === "text_delta") {
+				output += ev.delta;
+			} else if (ev.type === "error") {
+				streamError = ev.error.errorMessage || `LLM API error (stopReason: ${ev.error.stopReason})`;
+				logger.error({ errorMessage: streamError, stopReason: ev.error.stopReason, sessionPath, elapsedMs: Date.now() - promptStartTime }, `LLM API stream error in ${fnName}`);
+			}
+		} else if (event.type === "auto_retry_start") {
+			obsLogger.warn({
+				event: "auto_retry_start",
+				attempt: event.attempt,
+				maxAttempts: event.maxAttempts,
+				delayMs: event.delayMs,
+				errorMessage: event.errorMessage,
+				elapsedMs: Date.now() - promptStartTime,
+			}, "LLM API call failed, auto-retrying...");
+		} else if (event.type === "auto_retry_end") {
+			if (event.success) {
+				obsLogger.info({
+					event: "auto_retry_end",
+					success: true,
+					attempt: event.attempt,
+				}, "LLM API auto-retry succeeded");
+			} else {
+				obsLogger.error({
+					event: "auto_retry_end",
+					success: false,
+					finalError: event.finalError,
+					elapsedMs: Date.now() - promptStartTime,
+				}, "LLM API auto-retry failed");
+			}
+		}
+	});
+	try {
+		await session.prompt(prompt, images?.length ? { images } : undefined);
+	} finally {
+		unsubscribe();
+		obsUnsub();
+	}
+
+	if (streamError) {
+		throw new Error(streamError);
+	}
+
+	if (!output.trim()) {
+		obsLogger.warn({ event: "empty_output", fn: fnName, sessionPath }, `${fnName} returned empty output — the model may have produced no text or an API error may have been swallowed`);
+	}
+
+	return output.trim();
 }

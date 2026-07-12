@@ -217,6 +217,30 @@ inno-session-sidebar {
 	pointer-events: none;
 }
 
+.app-layout > .global-todo-panel {
+	position: absolute;
+	top: 12px;
+	bottom: auto;
+	left: 50%;
+	width: min(520px, calc(100vw - 32px));
+	min-height: 0;
+	max-height: none;
+	transform: translateX(-50%);
+	z-index: 40;
+	pointer-events: none;
+}
+
+.global-todo-card {
+	pointer-events: auto;
+	max-height: 160px;
+	overflow: auto;
+	border: 1px solid var(--inno-warning-border);
+	border-radius: 8px;
+	background: color-mix(in srgb, var(--inno-surface) 92%, var(--inno-warning-bg));
+	box-shadow: var(--inno-shadow-soft);
+	padding: 8px 10px;
+}
+
 /* Chat center */
 inno-chat-center {
 	display: flex;
@@ -419,47 +443,6 @@ inno-workspace-panel textarea {
 .inno-workspace-tab {
 	font-size: 11px;
 	line-height: 1;
-}
-
-.inno-stream-status-dot {
-	display: inline-block;
-	width: 7px;
-	height: 7px;
-	border-radius: 999px;
-	background: var(--inno-success);
-	box-shadow: 0 0 0 3px var(--inno-success-bg);
-}
-
-.inno-stream-status-dot.is-streaming {
-	animation: inno-stream-pulse 1.2s ease-in-out infinite;
-}
-
-.inno-stream-cursor {
-	display: inline-block;
-	width: 7px;
-	height: 1.1em;
-	margin-left: 2px;
-	vertical-align: -0.18em;
-	background: var(--inno-accent);
-	animation: inno-stream-caret 1s steps(1, end) infinite;
-}
-
-@keyframes inno-stream-pulse {
-	0%, 100% {
-		opacity: 0.45;
-	}
-	50% {
-		opacity: 1;
-	}
-}
-
-@keyframes inno-stream-caret {
-	0%, 49% {
-		opacity: 1;
-	}
-	50%, 100% {
-		opacity: 0;
-	}
 }
 
 .inno-sidebar-scope {

@@ -35,15 +35,14 @@
 		"ok": "OK",
 		"saving": "Saving…",
 		"saved": "Saved",
-		"copy": "Copy",
-		"copied": "Copied",
 		"remove": "Remove",
 		"open": "Open",
 		"close": "Close",
 		"pasteCollapsed": "«Pasted {{count}} lines»",
 		"pasteCollapsedUndo": "Undo paste",
 		"questionPending": "Please answer the question above before continuing",
-		"questionPendingJump": "View question"
+		"questionPendingJump": "View question",
+		"pendingTodosTitle": "Pending items ({{count}})"
 	},
 	"notebook": {
 		"title": "Notebook",
@@ -150,14 +149,7 @@
 		"docxFailed": "Failed to render document",
 		"xlsxLoading": "Rendering spreadsheet...",
 		"xlsxFailed": "Failed to render spreadsheet",
-		"xlsxLargeSheetWarning": "Large sheet — showing first {{n}} rows",
-		"streamingGenerating": "Generating",
-		"streamingDone": "Generated",
-		"streamingError": "Interrupted",
-		"streamingLines": "lines",
-		"streamingHint": "Long output is rendering on the right; chat keeps a summary.",
-		"streamingWaiting": "Waiting for output…",
-		"streamingClose": "Close generation preview"
+		"xlsxLargeSheetWarning": "Large sheet — showing first {{n}} rows"
 	},
 	"profile": {
 		"title": "Learner Profile",
@@ -418,8 +410,6 @@
 			"contextWindow": "Context window",
 			"maxTokens": "Max tokens",
 			"reasoning": "reasoning",
-			"authHeader": "use Bearer auth",
-			"bypassProxy": "bypass system proxy",
 			"makeDefault": "make default",
 			"preserveApiKey": "preserve key"
 		},
@@ -527,11 +517,18 @@
 		"errCreateSession": "Failed to create session",
 		"removeUpload": "Remove upload",
 		"removeImage": "Remove image",
-		"streamingInWorkspace": "Long output is generating in the file panel",
-		"longContentCollapsed": "Long content collapsed to keep the page responsive",
-		"expandFullContent": "Expand full content",
-		"collapseFullContent": "Collapse full content",
-		"composerPlaceholder": "Type a message…"
+		"composerPlaceholder": "Type a message…",
+		"quickActions": {
+			"label": "Quick actions",
+			"summary": "Summarize",
+			"summaryPrompt": "Please summarize the key points from what I just learned in bullet points, and add one commonly confused point.",
+			"practice": "Mini practice",
+			"practicePrompt": "Please create 3 short practice questions based on what I am learning now, from easy to hard, and wait for my answers before explaining.",
+			"memory": "Memory method",
+			"memoryPrompt": "Please design a quick memory method for what I am learning now, using a mnemonic, association, example, or comparison table.",
+			"weakness": "Review weakness",
+			"weaknessPrompt": "Based on my learning goal and recent conversation, help me review one weak point I should reinforce. Explain it briefly first, then give me a small exercise."
+		}
 	},
 	"question": {
 		"typeSomething": "Type something…",

@@ -12,6 +12,7 @@ import {
 	inlineWorkspaceHtml,
 } from "../api/workspace.js";
 import type { WorkspaceFileDetail, WorkspaceTree } from "../types/workspace.js";
+import type { PresetQuickAction } from "../types/presets.js";
 
 export interface StreamingWorkspacePreview {
 	id: string;
@@ -30,6 +31,23 @@ interface WorkspaceStoreEvents {
 	change: void;
 }
 
+function normalizeQuickActions(raw: unknown): PresetQuickAction[] | null {
+	if (!Array.isArray(raw)) return null;
+	const actions = raw
+		.map((item): PresetQuickAction | null => {
+			if (!item || typeof item !== "object") return null;
+			const record = item as Record<string, unknown>;
+			const label = typeof record.label === "string" ? record.label.trim() : "";
+			const prompt = typeof record.prompt === "string" ? record.prompt.trim() : "";
+			const icon = typeof record.icon === "string" ? record.icon.trim() : "";
+			if (!label || !prompt) return null;
+			return { label, prompt, icon: icon || undefined };
+		})
+		.filter((item): item is PresetQuickAction => item !== null)
+		.slice(0, 6);
+	return actions.length > 0 ? actions : null;
+}
+
 class WorkspaceStoreImpl extends EventEmitter<WorkspaceStoreEvents> {
 	tree: WorkspaceTree | null = null;
 	currentFile: WorkspaceFileDetail | null = null;
@@ -41,6 +59,7 @@ class WorkspaceStoreImpl extends EventEmitter<WorkspaceStoreEvents> {
 
 	/** The workspace currently shown in the panel. null → server default. */
 	activeWorkspaceId: string | null = null;
+	quickActions: PresetQuickAction[] | null = null;
 
 	/* --- Editing state --- */
 	isEditing = false;
@@ -49,13 +68,17 @@ class WorkspaceStoreImpl extends EventEmitter<WorkspaceStoreEvents> {
 
 	/** Set the active workspace and reload the tree. */
 	async setActiveWorkspace(workspaceId: string | null): Promise<void> {
-		if (this.activeWorkspaceId === workspaceId) return;
+		if (this.activeWorkspaceId === workspaceId) {
+			await this.loadQuickActions();
+			return;
+		}
 		this.activeWorkspaceId = workspaceId;
+		this.quickActions = null;
 		this.currentFile = null;
 		this.isEditing = false;
 		this.editBuffer = "";
 		this.emit("change", undefined);
-		await this.loadTree();
+		await Promise.all([this.loadTree(), this.loadQuickActions()]);
 	}
 
 	private get wsId(): string | undefined {
@@ -77,6 +100,23 @@ class WorkspaceStoreImpl extends EventEmitter<WorkspaceStoreEvents> {
 			this.tree = null;
 		} finally {
 			this.isLoadingTree = false;
+			this.emit("change", undefined);
+		}
+	}
+
+	private async loadQuickActions(): Promise<void> {
+		if (!this.wsId) {
+			this.quickActions = null;
+			this.emit("change", undefined);
+			return;
+		}
+		try {
+			const file = await getWorkspaceFile(".inno/quick-actions.json", this.wsId, true);
+			const parsed = JSON.parse(file.content ?? "{}") as { quickActions?: unknown };
+			this.quickActions = normalizeQuickActions(parsed.quickActions);
+		} catch {
+			this.quickActions = null;
+		} finally {
 			this.emit("change", undefined);
 		}
 	}

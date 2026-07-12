@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { AlertTriangle } from "lucide-react";
 import { appStore, type RightPanelTab, type WorkspaceMode } from "../stores/app-store.js";
+import { chatStore } from "../stores/chat-store.js";
 import { settingsStore } from "../stores/settings-store.js";
+import { sessionsStore } from "../stores/sessions-store.js";
 import { themeStore, type ThemeId } from "../stores/theme-store.js";
 import { useStoreSnapshot } from "./hooks.js";
 import { ChatCenter } from "./ChatCenter.js";
@@ -103,6 +107,47 @@ export function App() {
 				onModeChange={setWorkspaceMode}
 				onWidthChange={setWorkspaceWidth}
 			/>
+			<PendingTodoPanel />
+		</div>
+	);
+}
+
+function PendingTodoPanel() {
+	const { t } = useTranslation();
+	const pendingItems = useStoreSnapshot(chatStore, () => chatStore.pendingQuestionItems);
+
+	useEffect(() => {
+		void chatStore.refreshPendingQuestions();
+		const timer = window.setInterval(() => {
+			void chatStore.refreshPendingQuestions();
+		}, 5000);
+		return () => window.clearInterval(timer);
+	}, []);
+
+	if (pendingItems.length === 0) return null;
+
+	return (
+		<div className="global-todo-panel">
+			<div className="global-todo-card">
+				<div className="mb-1 flex items-center gap-2 text-xs font-medium text-[var(--inno-warning)]">
+					<AlertTriangle size={14} className="shrink-0" />
+					<span>{t("common.pendingTodosTitle", { count: pendingItems.length })}</span>
+				</div>
+				<ul className="list-disc space-y-1 pl-5 text-xs text-[var(--inno-text-muted)]">
+					{pendingItems.map((item) => (
+						<li key={item.questionId}>
+							<button
+								className="max-w-full text-left hover:text-[var(--inno-text)] hover:underline"
+								onClick={() => {
+									if (item.sessionId) void sessionsStore.openSession(item.sessionId);
+								}}
+							>
+								{item.title}
+							</button>
+						</li>
+					))}
+				</ul>
+			</div>
 		</div>
 	);
 }

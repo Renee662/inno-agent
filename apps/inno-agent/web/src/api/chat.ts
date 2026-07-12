@@ -1,5 +1,5 @@
 import { apiFetch, streamSSE, streamSSEGet } from "./client.js";
-import type { ChatStreamEvent } from "../types/chat.js";
+import type { ChatStreamEvent, PendingQuestion, PendingQuestionItem } from "../types/chat.js";
 
 export interface InlineImage {
 	data: string;
@@ -29,6 +29,20 @@ export async function abortChat(): Promise<void> {
 	} catch {
 		// best-effort — the SSE close handler is a fallback
 	}
+}
+
+export interface ChatStatus {
+	hasPendingQuestion: boolean;
+	pendingQuestions: PendingQuestionItem[];
+}
+
+export async function getChatStatus(): Promise<ChatStatus> {
+	return apiFetch<ChatStatus>("/api/chat/status");
+}
+
+export async function getPendingQuestionForSession(sessionId: string): Promise<PendingQuestion | null> {
+	const res = await apiFetch<{ pendingQuestion: PendingQuestion | null }>(`/api/chat/pending-question?sessionId=${encodeURIComponent(sessionId)}`);
+	return res.pendingQuestion;
 }
 
 /**

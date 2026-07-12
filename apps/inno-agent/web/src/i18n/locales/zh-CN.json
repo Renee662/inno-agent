@@ -35,15 +35,14 @@
 		"ok": "确定",
 		"saving": "保存中…",
 		"saved": "已保存",
-		"copy": "复制",
-		"copied": "已复制",
 		"remove": "移除",
 		"open": "打开",
 		"close": "关闭",
 		"pasteCollapsed": "«已粘贴 {{count}} 行»",
 		"pasteCollapsedUndo": "撤销粘贴",
 		"questionPending": "请完成上方问卷后再继续对话",
-		"questionPendingJump": "查看问卷"
+		"questionPendingJump": "查看问卷",
+		"pendingTodosTitle": "未完成事项（{{count}}）"
 	},
 	"notebook": {
 		"title": "笔记本",
@@ -150,14 +149,7 @@
 		"docxFailed": "文档渲染失败",
 		"xlsxLoading": "正在渲染表格…",
 		"xlsxFailed": "表格渲染失败",
-		"xlsxLargeSheetWarning": "表格较大 — 仅显示前 {{n}} 行",
-		"streamingGenerating": "正在生成",
-		"streamingDone": "生成完成",
-		"streamingError": "生成中断",
-		"streamingLines": "行",
-		"streamingHint": "长内容正在右侧生成，聊天区只保留摘要。",
-		"streamingWaiting": "等待模型开始输出…",
-		"streamingClose": "关闭生成预览"
+		"xlsxLargeSheetWarning": "表格较大 — 仅显示前 {{n}} 行"
 	},
 	"profile": {
 		"title": "学习者画像",
@@ -418,8 +410,6 @@
 			"contextWindow": "上下文窗口",
 			"maxTokens": "最大 Tokens",
 			"reasoning": "支持推理",
-			"authHeader": "使用 Bearer 鉴权",
-			"bypassProxy": "绕过系统代理",
 			"makeDefault": "设为默认",
 			"preserveApiKey": "保留现有 Key"
 		},
@@ -527,11 +517,18 @@
 		"errCreateSession": "创建会话失败",
 		"removeUpload": "移除上传",
 		"removeImage": "移除图片",
-		"streamingInWorkspace": "长内容正在右侧文件区生成",
-		"longContentCollapsed": "内容较长，已折叠以保持页面流畅",
-		"expandFullContent": "展开完整内容",
-		"collapseFullContent": "收起完整内容",
-		"composerPlaceholder": "输入消息…"
+		"composerPlaceholder": "输入消息…",
+		"quickActions": {
+			"label": "快捷指令",
+			"summary": "总结知识点",
+			"summaryPrompt": "请帮我总结刚才学习内容的核心知识点，用条目列出，并补充一个最容易混淆的点。",
+			"practice": "来个小练习",
+			"practicePrompt": "请根据我当前正在学习的内容，出 3 道小练习题，难度由易到难，并在我作答后再给解析。",
+			"memory": "快速记忆方法",
+			"memoryPrompt": "请为我当前学习的内容设计一个快速记忆方法，可以包含口诀、联想、例子或对比表。",
+			"weakness": "复习薄弱点",
+			"weaknessPrompt": "请根据我的学习目标和最近对话，帮我复习一个最需要巩固的薄弱点，先简要讲解，再给一个小练习。"
+		}
 	},
 	"question": {
 		"typeSomething": "输入自定义答案…",

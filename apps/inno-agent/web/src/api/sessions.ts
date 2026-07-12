@@ -23,12 +23,14 @@ export interface SessionDetail extends SessionMeta {
 export interface SessionActivationResult {
 	id: string;
 	active: boolean;
+	pendingQuestionPreserved?: boolean;
 }
 
 export interface NewSessionResult {
 	id: string;
 	active: boolean;
 	workspaceId?: string;
+	pendingQuestionPreserved?: boolean;
 }
 
 export interface CreateSessionInput {

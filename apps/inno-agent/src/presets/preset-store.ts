@@ -31,6 +31,13 @@ export interface PresetMeta {
 	description: string;
 	icon?: string;
 	category?: string;
+	quickActions?: PresetQuickAction[];
+}
+
+export interface PresetQuickAction {
+	label: string;
+	prompt: string;
+	icon?: string;
 }
 
 /** Only simple, single-segment ids — blocks path traversal. */
@@ -38,6 +45,26 @@ const PRESET_ID_RE = /^[a-zA-Z0-9._-]+$/;
 
 function isValidPresetId(id: string): boolean {
 	return PRESET_ID_RE.test(id) && id !== "." && id !== "..";
+}
+
+function parseQuickActions(raw: unknown): PresetQuickAction[] | undefined {
+	if (!Array.isArray(raw)) return undefined;
+	const actions = raw
+		.map((item): PresetQuickAction | null => {
+			if (!item || typeof item !== "object") return null;
+			const record = item as Record<string, unknown>;
+			const label = typeof record.label === "string" ? record.label.trim() : "";
+			const prompt = typeof record.prompt === "string" ? record.prompt.trim() : "";
+			const icon = typeof record.icon === "string" ? record.icon.trim() : "";
+			if (!label || !prompt) return null;
+			return {
+				label,
+				prompt,
+				icon: icon || undefined,
+			};
+		})
+		.filter((item): item is PresetQuickAction => item !== null);
+	return actions.length > 0 ? actions : undefined;
 }
 
 /** Absolute path to the local preset cache directory. */
@@ -74,6 +101,7 @@ function parsePresetMeta(rawText: string, id: string): PresetMeta | null {
 			description: (raw.description ?? "").trim(),
 			icon: raw.icon?.trim() || undefined,
 			category: raw.category?.trim() || undefined,
+			quickActions: parseQuickActions(raw.quickActions),
 		};
 	} catch (err) {
 		logger.warn({ err, id }, "failed to parse preset.json; skipping");
@@ -129,6 +157,7 @@ export async function listRemotePresets(source: RemoteContentSource, forceRefres
 				description: typeof m.description === "string" ? m.description.trim() : "",
 				icon: typeof m.icon === "string" && m.icon.trim() ? m.icon.trim() : undefined,
 				category: typeof m.category === "string" && m.category.trim() ? m.category.trim() : undefined,
+				quickActions: parseQuickActions(m.quickActions),
 			};
 		}
 		// GitHub: read the preset.json file.
@@ -246,5 +275,16 @@ export function instantiatePreset(
 	} else {
 		logger.info({ presetId: id, workspaceId: ws.id }, "reused existing preset workspace");
 	}
+	writePresetWorkspaceConfig(destDir, meta);
 	return ws;
+}
+
+function writePresetWorkspaceConfig(workspaceDir: string, meta: PresetMeta): void {
+	const configDir = join(workspaceDir, ".inno");
+	if (!existsSync(configDir)) mkdirSync(configDir, { recursive: true });
+	writeFileSync(
+		join(configDir, "quick-actions.json"),
+		JSON.stringify({ quickActions: meta.quickActions ?? [] }, null, 2),
+		"utf-8",
+	);
 }
