@@ -5,12 +5,13 @@ import "source-map-support/register.js";
 import { createServer, type IncomingMessage as HttpReq, type ServerResponse } from "node:http";
 import { spawnSync, execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, watch, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, extname, join, relative, resolve } from "node:path";
+import { basename, dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
 import { loadConfig, saveConfig, setDefaultModel, upsertProvider, deleteProvider, deleteModel, normalizeContentHubConfig, type InnoConfig, type InnoContentHubConfig, type InnoModelConfig, type InnoProviderConfig } from "./config.js";
 import { installFetchLogger } from "./utils/fetch-logger.js";
+import { applyProviderProxyBypass } from "./utils/proxy-bypass.js";
 import { ensureDir, readJson, readText, writeJson, writeText } from "./storage/file-store.js";
 import {
 	createNewSession,
@@ -142,6 +143,9 @@ function piEventToSseEvent(event: any): unknown | null {
 			const ev = event.assistantMessageEvent;
 			if (ev.type === "text_delta") return { type: "text_delta", delta: ev.delta };
 			if (ev.type === "thinking_delta") return { type: "thinking_delta", delta: ev.delta };
+			if (ev.type === "toolcall_start" || ev.type === "toolcall_delta" || ev.type === "toolcall_end") {
+				return toolCallStreamEventFromAssistantEvent(ev);
+			}
 			if (ev.type === "error") return { type: "error", message: ev.error.errorMessage || `LLM API error (stopReason: ${ev.error.stopReason})` };
 			return null;
 		}
@@ -159,6 +163,25 @@ function piEventToSseEvent(event: any): unknown | null {
 		default:
 			return null;
 	}
+}
+
+function toolCallStreamEventFromAssistantEvent(ev: any): unknown | null {
+	const content = Array.isArray(ev.partial?.content) ? ev.partial.content : [];
+	const block = typeof ev.contentIndex === "number" ? content[ev.contentIndex] : undefined;
+	if (!block || typeof block !== "object" || block.type !== "toolCall") return null;
+	const toolCallId = typeof block.id === "string" && block.id ? block.id : `content-${ev.contentIndex}`;
+	const toolName = typeof block.name === "string" ? block.name : "";
+	if (!toolName) return null;
+	const args = ev.type === "toolcall_end"
+		? ev.toolCall?.arguments ?? block.arguments
+		: undefined;
+	return {
+		type: "tool_call_delta",
+		toolCallId,
+		toolName,
+		...(args !== undefined ? { args } : {}),
+		...(ev.type === "toolcall_delta" && typeof ev.delta === "string" ? { argsDelta: ev.delta } : {}),
+	};
 }
 
 /** Convert a raw PI SDK event to a ChannelStreamEvent for channel streaming replies. */
@@ -202,6 +225,7 @@ async function ensureBootstrapped(): Promise<void> {
 
 		// ---- config (loaded lazily, not at process start) ----
 		config = loadConfig(paths.configPath);
+		applyProviderProxyBypass(config);
 
 		// ---- data directories ----
 		ensureDir(paths.learnerDataDir);
@@ -531,6 +555,9 @@ function buildSafeSettings() {
 				{
 					...providerConfig,
 					apiKey: maskSecret(providerConfig.apiKey),
+					headers: providerConfig.headers
+						? Object.fromEntries(Object.entries(providerConfig.headers).map(([key, value]) => [key, maskSecret(value)]))
+						: undefined,
 				},
 			]),
 		),
@@ -570,11 +597,24 @@ function parseModelConfig(value: unknown): InnoModelConfig {
 	};
 }
 
+function parseStringHeaders(value: unknown): Record<string, string> | undefined {
+	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+	const headers: Record<string, string> = {};
+	for (const [key, headerValue] of Object.entries(value as Record<string, unknown>)) {
+		const normalizedKey = key.trim();
+		if (normalizedKey && typeof headerValue === "string") {
+			headers[normalizedKey] = headerValue;
+		}
+	}
+	return Object.keys(headers).length > 0 ? headers : undefined;
+}
+
 function parseProviderPayload(body: Record<string, unknown>): {
 	providerId: string;
 	provider: InnoProviderConfig;
 	makeDefault: boolean;
 	preserveApiKey: boolean;
+	preserveHeaders: boolean;
 } {
 	const providerId = typeof body.providerId === "string" ? body.providerId.trim() : "";
 	if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(providerId)) {
@@ -583,13 +623,23 @@ function parseProviderPayload(body: Record<string, unknown>): {
 	const baseUrl = typeof body.baseUrl === "string" ? body.baseUrl.trim() : "";
 	const apiKey = typeof body.apiKey === "string" ? body.apiKey : "";
 	const api = typeof body.api === "string" ? body.api.trim() : "openai-completions";
+	const headers = parseStringHeaders(body.headers);
 	const rawModels = Array.isArray(body.models) ? body.models : [];
 	const models = rawModels.map(parseModelConfig);
 	return {
 		providerId,
-		provider: { baseUrl, apiKey, api, models },
+		provider: {
+			baseUrl,
+			apiKey,
+			api,
+			...(headers && Object.keys(headers).length > 0 ? { headers } : {}),
+			...(body.authHeader === true ? { authHeader: true } : {}),
+			...(body.bypassProxy === true ? { bypassProxy: true } : {}),
+			models,
+		},
 		makeDefault: Boolean(body.makeDefault),
 		preserveApiKey: Boolean(body.preserveApiKey),
+		preserveHeaders: !Object.prototype.hasOwnProperty.call(body, "headers"),
 	};
 }
 
@@ -1331,6 +1381,106 @@ interface WorkspaceTreeNode {
 
 function workspaceRelativePath(rootDir: string, filePath: string): string {
 	return relative(rootDir, filePath) || "";
+}
+
+interface WorkspaceFileChange {
+	path: string;
+	change: "created" | "modified" | "deleted";
+}
+
+interface WorkspaceChangeMonitor {
+	noteToolEnd(toolCallId: string, toolName: string): void;
+	close(): void;
+}
+
+const WORKSPACE_CHANGE_IGNORES = new Set([
+	...WORKSPACE_IGNORES,
+	".next",
+	".vite",
+	"coverage",
+]);
+const MAX_WORKSPACE_CHANGE_EVENTS = 40;
+const WORKSPACE_CHANGE_SETTLE_MS = 80;
+
+function createWorkspaceChangeMonitor(
+	rootDir: string | null,
+	publish: (event: unknown) => void,
+): WorkspaceChangeMonitor | null {
+	if (!rootDir || !existsSync(rootDir)) return null;
+	const root = resolve(rootDir);
+	const pending = new Map<string, "change" | "rename">();
+	let context: { toolCallId: string; toolName: string } | null = null;
+	let timer: ReturnType<typeof setTimeout> | null = null;
+	let closed = false;
+
+	const flush = () => {
+		if (timer) clearTimeout(timer);
+		timer = null;
+		if (pending.size === 0 || !context) return;
+		const entries = Array.from(pending.entries());
+		pending.clear();
+		const changes: WorkspaceFileChange[] = [];
+		for (const [path, eventType] of entries.slice(0, MAX_WORKSPACE_CHANGE_EVENTS)) {
+			const fullPath = resolve(root, path);
+			if (existsSync(fullPath)) {
+				try {
+					if (!statSync(fullPath).isFile()) continue;
+				} catch {
+					continue;
+				}
+				changes.push({ path, change: eventType === "rename" ? "created" : "modified" });
+			} else {
+				changes.push({ path, change: "deleted" });
+			}
+		}
+		if (changes.length > 0) {
+			publish({
+				type: "workspace_change",
+				...context,
+				changes,
+				truncated: entries.length > MAX_WORKSPACE_CHANGE_EVENTS,
+			});
+		}
+	};
+
+	const scheduleFlush = () => {
+		if (!context || closed) return;
+		if (timer) clearTimeout(timer);
+		timer = setTimeout(flush, WORKSPACE_CHANGE_SETTLE_MS);
+	};
+
+	let watcher: ReturnType<typeof watch>;
+	try {
+		watcher = watch(root, { recursive: true }, (eventType, filename) => {
+			if (!filename || closed) return;
+			const fullPath = resolve(root, filename.toString());
+			const relativePath = relative(root, fullPath);
+			if (!relativePath || relativePath.startsWith("..") || isAbsolute(relativePath)) return;
+			const normalizedPath = relativePath.replaceAll("\\", "/");
+			if (normalizedPath.split("/").some((part) => WORKSPACE_CHANGE_IGNORES.has(part))) return;
+			pending.set(normalizedPath, eventType);
+			scheduleFlush();
+		});
+	} catch (err) {
+		logger.warn({ err, root }, "workspace file monitoring unavailable");
+		return null;
+	}
+
+	watcher.on("error", (err) => {
+		logger.warn({ err, root }, "workspace file monitor failed");
+	});
+
+	return {
+		noteToolEnd(toolCallId, toolName) {
+			context = { toolCallId, toolName };
+			scheduleFlush();
+		},
+		close() {
+			closed = true;
+			flush();
+			watcher.close();
+		},
+	};
 }
 
 /** Build a tree node for an installed private skill directory under `<root>/.skills`. */
@@ -3678,8 +3828,10 @@ const server = createServer(async (req, res) => {
 				upsertProvider(config, payload.providerId, payload.provider, {
 					makeDefault: payload.makeDefault,
 					preserveApiKey: payload.preserveApiKey,
+					preserveHeaders: payload.preserveHeaders,
 				}),
 			);
+			applyProviderProxyBypass(config);
 			await refreshConfiguredProviders(config);
 			if (payload.makeDefault) {
 				await switchModel(config.defaultProvider, config.defaultModel);
@@ -4081,6 +4233,14 @@ const server = createServer(async (req, res) => {
 			// to the event stream after navigating away.
 			const broadcaster = new SessionEventBroadcaster();
 			sessionBroadcasters.set(capturedSessionId, broadcaster);
+			const publishStreamEvent = (event: unknown) => {
+				broadcaster.publish(event);
+				if (!aborted) sseWrite(event);
+			};
+
+			const streamWorkspaceId = workspaceRegistry.getSessionWorkspaceId(capturedSessionId);
+			const streamWorkspaceRoot = workspaceRegistry.resolveWorkspaceDir(streamWorkspaceId);
+			const workspaceChangeMonitor = createWorkspaceChangeMonitor(streamWorkspaceRoot, publishStreamEvent);
 
 			// Track whether the model API surfaced an error this turn. The PI SDK
 			// does NOT throw on model API errors (e.g. HTTP 413 from an over-long
@@ -4121,6 +4281,7 @@ const server = createServer(async (req, res) => {
 						);
 						break;
 					case "tool_execution_end":
+						workspaceChangeMonitor?.noteToolEnd(event.toolCallId, event.toolName);
 						if (event.isError) {
 							const errText = Array.isArray(event.result?.content)
 								? event.result.content.map((c: { text?: string }) => c.text ?? "").join(" ").slice(0, 500)
@@ -4151,12 +4312,9 @@ const server = createServer(async (req, res) => {
 						break;
 				}
 
-				// Convert to SSE event and publish to broadcaster + live client
+				// Convert to an SSE event and publish to broadcaster + live client.
 				const sseEvent = piEventToSseEvent(event);
-				if (sseEvent) {
-					broadcaster.publish(sseEvent);
-					if (!aborted) sseWrite(sseEvent);
-				}
+				if (sseEvent) publishStreamEvent(sseEvent);
 			};
 
 			promptStartTime = Date.now();
@@ -4181,6 +4339,7 @@ const server = createServer(async (req, res) => {
 					sseWrite(errorEvent);
 				}
 			} finally {
+				workspaceChangeMonitor?.close();
 				// Always attribute this turn to the web channel — even on abort or
 				// error — so an interrupted first prompt keeps origin "web" instead
 				// of being mislabeled "cli" (which happens when no channels.json
