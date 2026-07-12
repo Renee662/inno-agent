@@ -130,6 +130,18 @@ function formatWorkspaceFileInstructions(workspaceDir: string): string {
 	].join("\n");
 }
 
+/**
+ * Detect whether a bash command tries to launch a file/URL via `open` (macOS)
+ * or `xdg-open` (Linux). In browser-accessible deployments these execute on
+ * the server host where the user can't see them; the web file panel already
+ * auto-opens a preview when files are written.
+ */
+const OPEN_LAUNCH_CMD_RE = /(?:^|[;&|]|\s&&\s)\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*(?:xdg-)?open\s+\S/;
+
+function isOpenLaunchCommand(command: string): boolean {
+	return OPEN_LAUNCH_CMD_RE.test(command);
+}
+
 export function createInnoExtension(
 	configHolder: ConfigHolder,
 	paths: RuntimePaths,
@@ -281,6 +293,20 @@ export function createInnoExtension(
 			return {
 				block: true,
 				reason: `文件路径不在当前工作区内。当前工作区是 ${workspaceDir}，请改用相对路径后重试。`,
+			};
+		});
+
+		// 5b. Block `open`/`xdg-open` shell commands. In server deployments
+		// these run on the host where the user can't see the result; the web
+		// file panel already auto-opens a preview when files are written.
+		pi.on("tool_call", async (event) => {
+			if (event.toolName !== "bash") return undefined;
+			const command = event.input?.command;
+			if (typeof command !== "string" || !isOpenLaunchCommand(command)) return undefined;
+			logger.warn({ command }, "blocked open/xdg-open command in bash tool");
+			return {
+				block: true,
+				reason: "不要使用 open/xdg-open 命令打开文件。文件生成后用户会在浏览器右侧的文件预览面板自动看到结果；如需引导用户查看，在回复里说明文件路径即可。",
 			};
 		});
 
