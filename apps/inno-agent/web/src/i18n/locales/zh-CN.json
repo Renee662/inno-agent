@@ -158,7 +158,7 @@
 		"streamingHint": "长内容正在右侧生成，聊天区只保留摘要。",
 		"streamingWaiting": "等待模型开始输出…",
 		"streamingClose": "关闭生成预览"
-		},
+	},
 	"profile": {
 		"title": "学习者画像",
 		"subtitle": "由对话与学习事件自动累积，可手动编辑",

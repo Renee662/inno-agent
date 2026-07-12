@@ -1068,49 +1068,49 @@ export function ChatCenter() {
 					) : null}
 
 					{chat.completedTools.length > 0 ? (
-							<motion.div
-								className="flex justify-start"
-								initial={{ opacity: 0 }}
-								animate={{ opacity: 1 }}
-								transition={{ duration: 0.2 }}
-							>
-								<details className="inno-message min-w-0 max-w-[78%] overflow-hidden rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)] px-3 py-2 text-xs text-[var(--inno-text-muted)]">
-									<summary className="cursor-pointer break-words [overflow-wrap:anywhere]">Completed tool calls · {chat.completedTools.length}</summary>
-									<div className="mt-2 grid min-w-0 max-w-full gap-1.5">
-										{chat.completedTools.map((tool) => (
-											<ToolRecordDetails key={tool.toolCallId} tool={tool} className="min-w-0 max-w-full overflow-hidden rounded border border-[var(--inno-border)] bg-[var(--inno-surface-muted)] px-2 py-1" />
-										))}
-									</div>
-								</details>
-							</motion.div>
-						) : null}
+						<motion.div
+							className="flex justify-start"
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							transition={{ duration: 0.2 }}
+						>
+							<details className="inno-message min-w-0 max-w-[78%] overflow-hidden rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)] px-3 py-2 text-xs text-[var(--inno-text-muted)]">
+								<summary className="cursor-pointer break-words [overflow-wrap:anywhere]">Completed tool calls · {chat.completedTools.length}</summary>
+								<div className="mt-2 grid min-w-0 max-w-full gap-1.5">
+									{chat.completedTools.map((tool) => (
+										<ToolRecordDetails key={tool.toolCallId} tool={tool} className="min-w-0 max-w-full overflow-hidden rounded border border-[var(--inno-border)] bg-[var(--inno-surface-muted)] px-2 py-1" />
+									))}
+								</div>
+							</details>
+						</motion.div>
+					) : null}
 
-						{chat.streamingText && chat.streamingTarget === "workspace" ? (
-							<motion.div
-								className="flex justify-start"
-								initial={{ opacity: 0, y: 8 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ duration: 0.2, ease: "easeOut" }}
-							>
-								<div className="inno-message max-w-[78%] rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)] px-3 py-2 text-[13px] text-[var(--inno-text-muted)]">
-									<div className="flex min-w-0 items-center gap-2">
-										<span className="inno-stream-status-dot is-streaming shrink-0" />
-										<span className="min-w-0 break-words [overflow-wrap:anywhere]">{t("chat.streamingInWorkspace", "长内容正在右侧文件区生成")}</span>
-									</div>
+					{chat.streamingText && chat.streamingTarget === "workspace" ? (
+						<motion.div
+							className="flex justify-start"
+							initial={{ opacity: 0, y: 8 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ duration: 0.2, ease: "easeOut" }}
+						>
+							<div className="inno-message max-w-[78%] rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)] px-3 py-2 text-[13px] text-[var(--inno-text-muted)]">
+								<div className="flex min-w-0 items-center gap-2">
+									<span className="inno-stream-status-dot is-streaming shrink-0" />
+									<span className="min-w-0 break-words [overflow-wrap:anywhere]">{t("chat.streamingInWorkspace", "长内容正在右侧文件区生成")}</span>
 								</div>
-							</motion.div>
-						) : chat.streamingText ? (
-							<motion.div
-								className="flex justify-start"
-								initial={{ opacity: 0, y: 8 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ duration: 0.2, ease: "easeOut" }}
-							>
-								<div className="inno-message max-w-[78%] rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)] px-3.5 py-2.5 text-[13px] leading-relaxed text-[var(--inno-text)]">
-									<markdown-artifact content={normalizeMarkdownMath(chat.streamingText)} />
-								</div>
-							</motion.div>
-						) : null}
+							</div>
+						</motion.div>
+					) : chat.streamingText ? (
+						<motion.div
+							className="flex justify-start"
+							initial={{ opacity: 0, y: 8 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ duration: 0.2, ease: "easeOut" }}
+						>
+							<div className="inno-message max-w-[78%] rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)] px-3.5 py-2.5 text-[13px] leading-relaxed text-[var(--inno-text)]">
+								<markdown-artifact content={normalizeMarkdownMath(chat.streamingText)} />
+							</div>
+						</motion.div>
+					) : null}
 
 					{chat.streamingError ? (
 						<motion.div

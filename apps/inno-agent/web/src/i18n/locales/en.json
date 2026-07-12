@@ -158,7 +158,7 @@
 		"streamingHint": "Long output is rendering on the right; chat keeps a summary.",
 		"streamingWaiting": "Waiting for output…",
 		"streamingClose": "Close generation preview"
-		},
+	},
 	"profile": {
 		"title": "Learner Profile",
 		"subtitle": "Built from conversations and learning events; editable.",
